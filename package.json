@@ -1,0 +1,36 @@
+{
+  "name": "website-overlay",
+  "version": "0.1.0",
+  "description": "Click any UI element, describe changes, hand off to your AI coding tool. Browser extension + optional sidecar + framework plugins.",
+  "type": "module",
+  "bin": {
+    "website-overlay": "./dist/cli.mjs"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./vite": "./dist/plugins/vite.js",
+    "./webpack": "./dist/plugins/webpack.js",
+    "./next": "./dist/plugins/next.js"
+  },
+  "scripts": {
+    "build": "npm run build:shared && npm run build:ext && npm run build:sidecar && npm run build:plugins",
+    "build:shared": "esbuild shared/types.ts shared/resolve.ts shared/format.ts shared/babel-plugin.ts --outdir=dist/shared --format=esm --platform=neutral",
+    "build:ext": "esbuild extension/content.ts --bundle --outfile=extension/dist/content.js --format=iife --platform=browser && esbuild extension/popup.ts --bundle --outfile=extension/dist/popup.js --format=iife --platform=browser && esbuild extension/background.ts --bundle --outfile=extension/dist/background.js --format=esm --platform=browser",
+    "build:sidecar": "esbuild sidecar/index.ts --bundle --outfile=dist/cli.mjs --format=esm --platform=node --banner:js='#!/usr/bin/env node'",
+    "build:plugins": "esbuild plugins/vite.ts plugins/webpack.ts plugins/next.ts --outdir=dist/plugins --format=esm --platform=node --bundle --external:vite --external:webpack --external:@babel/core --external:node:fs --external:node:path --external:node:http",
+    "clean": "rm -rf dist extension/dist"
+  },
+  "keywords": ["browser-extension", "ui", "overlay", "ai", "claude", "cursor", "vite-plugin", "webpack-plugin"],
+  "author": "Aryan Jain",
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0"
+  },
+  "peerDependencies": {
+    "@babel/core": ">=7.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@babel/core": { "optional": true }
+  }
+}

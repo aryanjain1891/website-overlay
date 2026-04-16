@@ -1,0 +1,6 @@
+node_modules/
+dist/
+extension/dist/
+.website-overlay.jsonl
+*.log
+.DS_Store

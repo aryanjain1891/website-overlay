@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "dist",
+    "declaration": true,
+    "declarationDir": "dist/types",
+    "rootDir": ".",
+    "types": ["chrome"]
+  },
+  "include": ["shared/**/*.ts", "extension/**/*.ts", "sidecar/**/*.ts", "plugins/**/*.ts"],
+  "exclude": ["node_modules", "dist", "extension/dist"]
+}
