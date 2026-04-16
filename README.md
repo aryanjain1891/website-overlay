@@ -1,22 +1,23 @@
 # Website Overlay
 
-Click any UI element on any website, describe what you want changed, and hand it off to your AI coding tool (Claude Code, Cursor, Windsurf, etc.).
+**Stop describing UI changes in words. Just click what you want changed.**
 
-Works on **any frontend** — React, Vue, Svelte, Angular, plain HTML, localhost or production.
+Website Overlay lets you click elements directly on any website — your localhost, staging, or even a live production page — annotate what you want changed, and hand it to your AI coding tool in one click. No screenshots. No copy-pasting CSS selectors. Just point, comment, go.
 
-## How it works
+## What it looks like
 
-1. **Install the browser extension** (Chromium-based: Chrome, Edge, Brave, Arc)
-2. **Press `Alt+Shift+C`** (or click the 🎯 Pick pill) on any page
-3. **Click elements** — each gets a numbered badge (①②③)
-4. **Press Enter** → write a comment referencing the badges: *"move ① above ②"*
-5. **Flush** via the extension popup:
-   - **Copy for AI** → copies structured markdown to clipboard → paste into your AI tool
-   - **Send to project** → writes to a JSONL file your AI tool reads directly (requires sidecar)
+1. You're on your app. You see a button that needs to be red.
+2. Press **Alt+Shift+C**. Click the button. Type *"make this red"*.
+3. You see a nav bar that should move. Click it too. Type *"move ① above ②"*.
+4. Click **Copy for AI** in the extension popup.
+5. Paste into Claude Code / Cursor / Windsurf / whatever you use.
+6. Your AI has everything it needs — element location, page context, your instructions — and makes the change.
 
-## Install
+That's it.
 
-### Browser extension (required)
+## Getting started
+
+### 1. Install the extension
 
 ```bash
 git clone https://github.com/aryanjain1891/website-overlay.git
@@ -24,95 +25,87 @@ cd website-overlay
 npm install && npm run build
 ```
 
-Then load the extension:
-1. Open `chrome://extensions` (or `edge://extensions`)
-2. Enable **Developer mode**
-3. Click **Load unpacked** → select the `extension/` folder
+Open your browser:
+- Go to `chrome://extensions` (works in Chrome, Edge, Brave, Arc — any Chromium browser)
+- Turn on **Developer mode** (top right)
+- Click **Load unpacked** → pick the `extension/` folder
 
-### Sidecar server (optional — for "Send to project" mode)
+You'll see the Website Overlay icon in your toolbar. Done.
+
+### 2. Use it
+
+| Step | What you do |
+|---|---|
+| **Activate** | Press `Alt+Shift+C` on any page, or click the 🎯 Pick pill that appears bottom-right |
+| **Pick elements** | Click anything on the page. Each click tags the element with a numbered badge — ①, ②, ③. You can pick as many as you need. |
+| **Comment** | Press `Enter` (or click the green **Comment** button). A popover lists everything you picked. Write what you want changed — reference badges like "swap ① and ②" or "make ① match the style of ②". |
+| **Queue** | Hit **Queue**. Pick more things on the same page or navigate to other pages. Your queue persists. |
+| **Send to AI** | Click the extension icon → **Copy for AI**. Paste into your AI tool. Done. |
+
+### 3. What your AI receives
+
+When you paste, your AI gets something like this:
+
+```
+## UI Changes Requested
+
+### ① <button class="btn-primary">Submit</button>
+- Page: https://myapp.com/settings
+- Selector: div.form-actions > button.btn-primary
+- Source: src/components/Settings.tsx:84    ← (if you use a framework plugin)
+- Change: "make this red, reduce padding to 8px"
+
+### ② <nav class="sidebar">
+- Page: https://myapp.com/settings
+- Selector: aside > nav.sidebar
+- Change: "move this above the header"
+```
+
+Your AI uses the page, selector, and (optionally) exact source file to find the right code and make the edit.
+
+## Making it even better (optional)
+
+### Direct file writes (for localhost development)
+
+If you're working on a project locally, you can skip the clipboard entirely. Run this in your project folder:
 
 ```bash
 npx website-overlay
-# or: npx website-overlay --port 7171 --dir /path/to/project
 ```
 
-The sidecar writes `.website-overlay.jsonl` in your project root. Tell your AI: *"apply the overlay queue"*.
+This starts a tiny local server. The extension auto-detects it and unlocks a **Send to project** button in the popup. Clicking it writes your picks directly to a file in your project that your AI tool can read. Tell your AI *"apply the overlay queue"* and it reads the file and applies every change.
 
-### Framework plugins (optional — for exact source locations)
+### Exact source locations (for React / Next.js / Webpack projects)
 
-Without plugins, the extension identifies elements by CSS selector + text content. With a plugin, it stamps exact `file:line:col` on every DOM element in dev builds.
+By default, the extension identifies elements by their CSS selector and text — which works on any website. But if you're developing locally, you can add a one-line plugin to your build config that tags every element with its exact source file and line number. This gives your AI surgical precision.
 
-<details>
-<summary><strong>Vite</strong> (React, Solid, Vue JSX)</summary>
-
+**Vite** (React, Solid, Vue):
 ```ts
 // vite.config.ts
 import websiteOverlay from 'website-overlay/vite';
 export default defineConfig({ plugins: [react(), websiteOverlay()] });
 ```
-</details>
 
-<details>
-<summary><strong>Webpack</strong> (CRA, custom)</summary>
-
-```js
-// webpack.config.js
-const { WebsiteOverlayPlugin } = require('website-overlay/webpack');
-module.exports = { plugins: [new WebsiteOverlayPlugin()] };
-```
-</details>
-
-<details>
-<summary><strong>Next.js</strong></summary>
-
+**Next.js**:
 ```js
 // next.config.js
 const { withWebsiteOverlay } = require('website-overlay/next');
 module.exports = withWebsiteOverlay({ /* your config */ });
 ```
-</details>
 
-## "Copy for AI" output format
-
-When you click **Copy for AI**, the clipboard gets structured markdown like:
-
-```markdown
-## UI Changes Requested
-
-### ① `<button class="btn-primary">Submit</button>`
-- **Page**: https://app.com/settings
-- **Selector**: `div.settings-form > button.btn-primary`
-- **Source**: `src/components/SettingsForm.tsx:42`
-- **Change**: "make this red, reduce padding"
+**Webpack**:
+```js
+// webpack.config.js
+const { WebsiteOverlayPlugin } = require('website-overlay/webpack');
+module.exports = { plugins: [new WebsiteOverlayPlugin()] };
 ```
 
-Paste this into Claude Code, Cursor, Windsurf, or any AI coding tool. The AI uses the selector/source info to find the right code and apply your changes.
+## Works with
 
-## Architecture
-
-```
-Browser Extension          →  Copy for AI (clipboard)
-  ├─ Content script              paste into any AI tool
-  │   (overlay, pick, badges)
-  ├─ Background script     →  Send to project (sidecar)
-  │   (queue, sidecar detect)     writes .website-overlay.jsonl
-  └─ Popup
-      (queue view, flush)
-
-Optional framework plugins
-  ├─ Vite plugin
-  ├─ Webpack plugin         stamp data-overlay-src="file:line:col"
-  └─ Next.js wrapper        on every DOM element in dev builds
-```
-
-## Development
-
-```bash
-npm install
-npm run build        # builds extension + sidecar + plugins
-npm run build:ext    # extension only
-npm run build:sidecar # sidecar only
-```
+- Any Chromium browser (Chrome, Edge, Brave, Arc)
+- Any website (localhost, staging, production, third-party)
+- Any AI coding tool (Claude Code, Cursor, Windsurf, Copilot, etc.)
+- Any frontend framework (React, Vue, Svelte, Angular, plain HTML)
 
 ## License
 
