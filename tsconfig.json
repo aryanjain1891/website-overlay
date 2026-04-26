@@ -11,8 +11,8 @@
     "declaration": true,
     "declarationDir": "dist/types",
     "rootDir": ".",
-    "types": ["chrome"]
+    "types": ["chrome", "node"]
   },
-  "include": ["shared/**/*.ts", "extension/**/*.ts", "sidecar/**/*.ts", "plugins/**/*.ts"],
-  "exclude": ["node_modules", "dist", "extension/dist"]
+  "include": ["shared/**/*.ts", "extension/**/*.ts", "sidecar/**/*.ts"],
+  "exclude": ["node_modules", "dist", "extension/dist", "plugins"]
 }

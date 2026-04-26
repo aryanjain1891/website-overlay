@@ -17,6 +17,45 @@ const btnSend = document.getElementById('btn-send') as HTMLButtonElement;
 const btnClear = document.getElementById('btn-clear') as HTMLButtonElement;
 const btnPick = document.getElementById('btn-pick') as HTMLButtonElement;
 const toggleDisabled = document.getElementById('toggle-disabled') as HTMLInputElement;
+const errorBanner = document.getElementById('error-banner')!;
+const errorMsg = document.getElementById('error-msg')!;
+const errorDismiss = document.getElementById('error-dismiss') as HTMLButtonElement;
+const confirmRow = document.getElementById('confirm-row')!;
+const confirmMsg = document.getElementById('confirm-msg')!;
+const confirmYes = document.getElementById('confirm-yes') as HTMLButtonElement;
+const confirmNo = document.getElementById('confirm-no') as HTMLButtonElement;
+
+function showError(msg: string) {
+  errorMsg.textContent = msg;
+  errorBanner.classList.add('show');
+}
+function hideError() {
+  errorBanner.classList.remove('show');
+}
+errorDismiss.addEventListener('click', hideError);
+
+// Inline confirm — replaces confirm() so we don't break out of the popup
+// styling. Returns a Promise that resolves true (yes) or false (no).
+let confirmResolver: ((ok: boolean) => void) | null = null;
+function askConfirm(message: string): Promise<boolean> {
+  // If a previous confirm is still open, resolve it as cancelled first.
+  confirmResolver?.(false);
+  confirmMsg.textContent = message;
+  confirmRow.classList.add('show');
+  return new Promise((resolve) => {
+    confirmResolver = resolve;
+  });
+}
+confirmYes.addEventListener('click', () => {
+  confirmRow.classList.remove('show');
+  confirmResolver?.(true);
+  confirmResolver = null;
+});
+confirmNo.addEventListener('click', () => {
+  confirmRow.classList.remove('show');
+  confirmResolver?.(false);
+  confirmResolver = null;
+});
 
 let currentOrigin: string | undefined;
 // Edit state. Tracks the queue index being edited and the working draft so
@@ -282,23 +321,28 @@ btnCopy.addEventListener('click', async () => {
 });
 
 btnSend.addEventListener('click', async () => {
+  hideError();
   btnSend.textContent = 'Sending…';
-  const result = await sendMsg({ type: 'flushToSidecar' });
-  if (result.ok) {
+  btnSend.disabled = true;
+  try {
+    const result = await sendMsg({ type: 'flushToSidecar' });
+    if (!result?.ok) throw new Error(result?.error ?? 'unknown error');
     const label = result.skipped > 0
       ? `Sent ${result.sent} · kept ${result.skipped}`
       : `Sent ${result.sent} ✓`;
     btnSend.textContent = label;
     setTimeout(() => { btnSend.textContent = '📡 Send to project'; refresh(); }, 1800);
-  } else {
-    alert(`Send failed: ${result.error ?? 'unknown error'}`);
+  } catch (e) {
+    showError(`Send failed: ${(e as Error).message}`);
     btnSend.textContent = '📡 Send to project';
+    btnSend.disabled = false;
   }
 });
 
 btnClear.addEventListener('click', async () => {
   if (!currentOrigin) return;
-  if (!confirm(`Clear queue for ${currentOrigin}?`)) return;
+  const ok = await askConfirm(`Clear all picks for ${currentOrigin}?`);
+  if (!ok) return;
   await sendMsg({ type: 'clearQueue', origin: currentOrigin });
   refresh();
 });

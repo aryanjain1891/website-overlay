@@ -4,3 +4,4 @@ extension/dist/
 .website-overlay.jsonl
 *.log
 .DS_Store
+website-overlay-extension.zip

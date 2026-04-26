@@ -702,6 +702,22 @@ export function mount() {
       font-style: normal;
     }
     .wo-help-body b { color: var(--wo-text); font-weight: 600; }
+
+    /* ───────── Inline error banner ───────── */
+    .wo-error-banner {
+      padding: 9px 11px;
+      margin: 0 0 12px 0;
+      background: rgba(239,68,68,0.1);
+      color: var(--wo-danger);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: var(--wo-radius-sm);
+      font: 500 12px var(--wo-font);
+      line-height: 1.4;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+    .wo-error-banner::before { content: '⚠'; flex: 0 0 auto; }
   `;
   shadow.appendChild(style);
 
@@ -1034,25 +1050,52 @@ export function mount() {
     restoreHostParent();
   }
 
+  /** Shows or replaces an inline error banner inside the given panel. The
+   *  banner is removed automatically the next time the panel re-renders
+   *  (its innerHTML gets reset). */
+  function showInlineError(parent: HTMLElement, msg: string) {
+    let banner = parent.querySelector<HTMLDivElement>(':scope > .wo-error-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.className = 'wo-error-banner';
+      parent.insertBefore(banner, parent.firstChild);
+    }
+    banner.textContent = msg;
+  }
+
   async function submitCompose() {
     if (buffer.length === 0) return;
     const textarea = popover.querySelector<HTMLTextAreaElement>('#__wo-comment');
     const comment = (textarea?.value ?? composeCommentDraft).trim();
     if (!comment) { textarea?.focus(); return; }
 
+    const submitBtn = popover.querySelector<HTMLButtonElement>('#__wo-submit');
+    const origLabel = submitBtn?.textContent ?? 'Queue';
     const item: QueueItem = {
       elements: buffer.map((s) => ({ ...s.picked })),
       comment,
     };
-    await sendMsg({ type: 'addToQueue', item });
-    queueCount++;
 
-    composeOpen = false;
-    popover.style.display = 'none';
-    clearBuffer();
-    renderPill();
-    exitPick();
-    restoreHostParent();
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Queueing…'; }
+    try {
+      const result = await sendMsg({ type: 'addToQueue', item });
+      if (!result?.ok) throw new Error(result?.error || 'queue rejected');
+      queueCount++;
+      composeOpen = false;
+      popover.style.display = 'none';
+      clearBuffer();
+      renderPill();
+      exitPick();
+      restoreHostParent();
+    } catch (e) {
+      // Surface the failure inline so users don't lose work to a closed
+      // popover. The submit button stays available for retry.
+      showInlineError(popover, `Couldn't queue: ${(e as Error).message || 'try again'}`);
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = origLabel;
+      }
+    }
   }
 
   // ── In-page queue panel ─────────────────────────────────
@@ -1282,10 +1325,16 @@ export function mount() {
 
     queuePanel.querySelector<HTMLButtonElement>('.send-btn')?.addEventListener('click', async () => {
       if (!canSend) return;
-      const result = await sendMsg({ type: 'flushToSidecar' });
-      if (result?.ok) {
+      const sendBtn = queuePanel.querySelector<HTMLButtonElement>('.send-btn');
+      if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…'; }
+      try {
+        const result = await sendMsg({ type: 'flushToSidecar' });
+        if (!result?.ok) throw new Error(result?.error || 'send failed');
         await loadQueueState();
         renderQueuePanel();
+      } catch (e) {
+        showInlineError(queuePanel, `Send failed: ${(e as Error).message || 'try again'}`);
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '📡 Send'; }
       }
     });
 

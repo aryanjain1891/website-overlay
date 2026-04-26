@@ -340,6 +340,65 @@
     .btn-clear:hover:not(:disabled) { background: var(--bg-3); color: var(--danger); }
 
     .actions:last-of-type { border-top: 0; padding-top: 0; }
+
+    /* ───────── Inline error banner ───────── */
+    .error-banner {
+      margin: 12px 16px 0;
+      padding: 9px 11px;
+      background: rgba(239,68,68,0.10);
+      color: var(--danger);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: var(--radius-sm);
+      font: 500 12px var(--font);
+      line-height: 1.4;
+      display: none;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .error-banner.show { display: flex; }
+    .error-banner .msg { flex: 1; }
+    .error-banner .dismiss {
+      background: transparent; border: 0; color: var(--danger);
+      cursor: pointer; padding: 0; font: 700 14px var(--font);
+      flex: 0 0 auto;
+      line-height: 1;
+    }
+
+    /* ───────── Inline confirm overlay (Clear queue) ───────── */
+    .confirm-row {
+      padding: 12px 16px;
+      background: rgba(239,68,68,0.06);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      display: none;
+      gap: 8px;
+      align-items: center;
+    }
+    .confirm-row.show { display: flex; }
+    .confirm-row .msg {
+      flex: 1;
+      font: 500 12px var(--font);
+      color: var(--text);
+    }
+    .confirm-row button {
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font: 600 12px var(--font);
+      cursor: pointer;
+      border: 0;
+      transition: background var(--tx);
+    }
+    .confirm-row .confirm-yes {
+      background: var(--danger);
+      color: #ffffff;
+    }
+    .confirm-row .confirm-yes:hover { opacity: 0.9; }
+    .confirm-row .confirm-no {
+      background: var(--bg);
+      color: var(--text-muted);
+      border: 1px solid var(--border-strong);
+    }
+    .confirm-row .confirm-no:hover { background: var(--bg-2); }
   </style>
 </head>
 <body>
@@ -364,6 +423,17 @@
       <input type="checkbox" id="toggle-disabled">
       Disable here
     </label>
+  </div>
+
+  <div class="error-banner" id="error-banner">
+    <span class="msg" id="error-msg"></span>
+    <button class="dismiss" id="error-dismiss" title="Dismiss">×</button>
+  </div>
+
+  <div class="confirm-row" id="confirm-row">
+    <span class="msg" id="confirm-msg">Clear all picks for this site?</span>
+    <button class="confirm-no" id="confirm-no">Cancel</button>
+    <button class="confirm-yes" id="confirm-yes">Clear</button>
   </div>
 
   <div id="queue-list"></div>

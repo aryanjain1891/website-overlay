@@ -81,10 +81,11 @@ export function buildSelector(el: Element): string {
         .join('.');
       if (cls) seg += `.${cls}`;
     }
-    const parent = cur.parentElement;
+    const parent: Element | null = cur.parentElement;
     if (parent) {
+      const tag = cur.tagName;
       const siblings = Array.from(parent.children).filter(
-        (c) => c.tagName === cur!.tagName,
+        (c: Element) => c.tagName === tag,
       );
       if (siblings.length > 1) {
         seg += `:nth-of-type(${siblings.indexOf(cur) + 1})`;
