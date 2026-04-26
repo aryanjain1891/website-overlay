@@ -15,6 +15,8 @@ const statusText = document.getElementById('status-text')!;
 const btnCopy = document.getElementById('btn-copy') as HTMLButtonElement;
 const btnSend = document.getElementById('btn-send') as HTMLButtonElement;
 const btnClear = document.getElementById('btn-clear') as HTMLButtonElement;
+const btnPick = document.getElementById('btn-pick') as HTMLButtonElement;
+const toggleDisabled = document.getElementById('toggle-disabled') as HTMLInputElement;
 
 let currentOrigin: string | undefined;
 // Edit state. Tracks the queue index being edited and the working draft so
@@ -55,6 +57,15 @@ async function refresh() {
   const resp: GetQueueResponse = await sendMsg({ type: 'getQueue' });
   const { queue, origin, countsByOrigin, sidecarStatus, sidecarOrigins } = resp;
   currentOrigin = origin;
+
+  // Per-site disable state
+  const siteState = await sendMsg({ type: 'getSiteState' });
+  toggleDisabled.checked = !!siteState?.disabled;
+  toggleDisabled.disabled = !origin;
+  btnPick.disabled = !origin || !!siteState?.disabled;
+  btnPick.textContent = siteState?.disabled
+    ? '⚠ Disabled on this site'
+    : '🎯 Start picking';
 
   originLabel.textContent = origin ?? '(no page)';
   countBadge.textContent = String(queue.length);
@@ -289,6 +300,22 @@ btnClear.addEventListener('click', async () => {
   if (!currentOrigin) return;
   if (!confirm(`Clear queue for ${currentOrigin}?`)) return;
   await sendMsg({ type: 'clearQueue', origin: currentOrigin });
+  refresh();
+});
+
+btnPick.addEventListener('click', async () => {
+  await sendMsg({ type: 'activatePick' });
+  // Close the popup so the user is back on the page in pick mode.
+  window.close();
+});
+
+toggleDisabled.addEventListener('change', async () => {
+  if (!currentOrigin) return;
+  await sendMsg({
+    type: 'setSiteDisabled',
+    origin: currentOrigin,
+    disabled: toggleDisabled.checked,
+  });
   refresh();
 });
 

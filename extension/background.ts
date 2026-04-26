@@ -9,6 +9,9 @@ import { formatQueueForClipboard } from '../shared/format';
 const STORAGE_KEY = 'wo:queue';
 const SIDECAR_URL_KEY = 'wo:sidecarUrl';
 const DEFAULT_SIDECAR = 'http://localhost:7171';
+const DISABLED_KEY = 'wo:disabledOrigins';
+const ACTIVE_TABS_KEY = 'wo:activeTabs';
+const CONTENT_SCRIPT = 'dist/content.js';
 
 let sidecarStatus: SidecarStatus = 'disconnected';
 let sidecarOrigins: string[] = [];
@@ -32,6 +35,133 @@ async function activeTabOrigin(): Promise<string | null> {
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   return originOfUrl(tab?.url);
 }
+
+// ── Per-site disable & per-tab activation ────────────────────
+// activeTab is a "click-to-activate" permission: the content script only
+// gets injected when the user explicitly invokes us (toolbar click, Alt+Shift+C).
+// We track which tab+origin pairs have been activated so we can re-inject
+// after same-origin navigation, preserving the cross-page draft flow.
+
+async function getDisabledOrigins(): Promise<string[]> {
+  const data = await chrome.storage.local.get(DISABLED_KEY);
+  return (data[DISABLED_KEY] as string[]) ?? [];
+}
+
+async function isOriginDisabled(origin: string | null): Promise<boolean> {
+  if (!origin) return false;
+  const list = await getDisabledOrigins();
+  return list.includes(origin);
+}
+
+async function setOriginDisabled(origin: string, disabled: boolean): Promise<void> {
+  const list = await getDisabledOrigins();
+  const i = list.indexOf(origin);
+  if (disabled && i === -1) list.push(origin);
+  else if (!disabled && i >= 0) list.splice(i, 1);
+  await chrome.storage.local.set({ [DISABLED_KEY]: list });
+}
+
+async function getActiveTabs(): Promise<Record<number, string>> {
+  // chrome.storage.session is per-browser-session; tab IDs reset on browser
+  // restart so this is the right scope. Fall back to {} if unavailable.
+  if (!chrome.storage.session) return {};
+  const data = await chrome.storage.session.get(ACTIVE_TABS_KEY);
+  return (data[ACTIVE_TABS_KEY] as Record<number, string>) ?? {};
+}
+
+async function markTabActivated(tabId: number, origin: string): Promise<void> {
+  if (!chrome.storage.session) return;
+  const map = await getActiveTabs();
+  map[tabId] = origin;
+  await chrome.storage.session.set({ [ACTIVE_TABS_KEY]: map });
+}
+
+async function clearTabActivation(tabId: number): Promise<void> {
+  if (!chrome.storage.session) return;
+  const map = await getActiveTabs();
+  if (map[tabId] !== undefined) {
+    delete map[tabId];
+    await chrome.storage.session.set({ [ACTIVE_TABS_KEY]: map });
+  }
+}
+
+async function tabActivatedOrigin(tabId: number): Promise<string | null> {
+  const map = await getActiveTabs();
+  return map[tabId] ?? null;
+}
+
+/** Inject content.js into a tab. Idempotent — content.js guards against
+ *  double-mount. Skips chrome:// and other restricted URLs silently. */
+async function injectContentScript(tabId: number): Promise<boolean> {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: [CONTENT_SCRIPT],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** User invoked us on a tab — inject (if needed), enter or toggle pick mode,
+ *  remember the origin so future navigations within it auto-reactivate. */
+async function activateOnTab(
+  tabId: number,
+  url: string | undefined,
+  mode: 'enter' | 'toggle' = 'enter',
+): Promise<void> {
+  const origin = originOfUrl(url);
+  if (!origin) return;
+  if (await isOriginDisabled(origin)) {
+    chrome.action.setBadgeText({ tabId, text: 'off' });
+    chrome.action.setBadgeBackgroundColor({ tabId, color: '#9ca3af' });
+    return;
+  }
+  const msgType = mode === 'toggle' ? 'togglePickMode' : 'enterPickMode';
+  // Try to message an existing content script first; fall back to injecting.
+  let messaged = false;
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: msgType });
+    messaged = true;
+  } catch {
+    /* not yet injected */
+  }
+  if (!messaged) {
+    const ok = await injectContentScript(tabId);
+    if (!ok) return;
+    await chrome.tabs.sendMessage(tabId, { type: msgType }).catch(() => {});
+  }
+  await markTabActivated(tabId, origin);
+}
+
+// Keyboard shortcut entry point (Alt+Shift+C). Note: action.onClicked does
+// NOT fire when a default_popup is set — the popup intercepts. The popup
+// itself sends 'activatePick' if the user wants to start picking.
+chrome.commands.onCommand.addListener(async (command, tab) => {
+  if (command !== 'toggle-pick' || !tab?.id) return;
+  await activateOnTab(tab.id, tab.url, 'toggle');
+});
+
+// Re-inject on same-origin navigation so the floating UI and any in-progress
+// draft survive. Different-origin navigation deactivates the tab.
+chrome.webNavigation.onCommitted.addListener(async (details) => {
+  if (details.frameId !== 0) return;
+  const tabId = details.tabId;
+  const newOrigin = originOfUrl(details.url);
+  const activatedOrigin = await tabActivatedOrigin(tabId);
+  if (!activatedOrigin) return;
+  if (newOrigin !== activatedOrigin) {
+    // User navigated to a different site; forget the activation.
+    await clearTabActivation(tabId);
+    return;
+  }
+  await injectContentScript(tabId);
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  clearTabActivation(tabId).catch(() => {});
+});
 
 // ── Queue storage ────────────────────────────────────────────
 
@@ -123,7 +253,10 @@ async function pingSidecar(): Promise<SidecarStatus> {
   return sidecarStatus;
 }
 
-setInterval(pingSidecar, 30_000);
+// Ping once on service-worker boot so the popup has a fresh status the first
+// time it's opened. We don't poll on a timer — that keeps the MV3 service
+// worker awake constantly and burns user battery. Status is refreshed on
+// demand inside getSidecarStatus / flushToSidecar instead.
 pingSidecar();
 
 // ── Flush to sidecar (origin-scoped) ─────────────────────────
@@ -268,6 +401,42 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         const queues = await getAllQueues();
         queues[msg.origin] = msg.queue ?? [];
         await setAllQueues(queues);
+        sendResponse({ ok: true });
+        break;
+      }
+      case 'activatePick': {
+        // Sent from the popup when the user clicks "Start picking".
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.id) await activateOnTab(tab.id, tab.url);
+        sendResponse({ ok: true });
+        break;
+      }
+      case 'getSiteState': {
+        const origin =
+          msg.origin ?? originOfUrl(sender.tab?.url) ?? (await activeTabOrigin()) ?? null;
+        const disabled = origin ? await isOriginDisabled(origin) : false;
+        sendResponse({ origin, disabled });
+        break;
+      }
+      case 'setSiteDisabled': {
+        if (typeof msg.origin !== 'string') {
+          sendResponse({ ok: false, error: 'origin required' });
+          break;
+        }
+        await setOriginDisabled(msg.origin, !!msg.disabled);
+        if (msg.disabled) {
+          // Tear down any tab currently running our content script on this
+          // origin, otherwise the pill/panel/badges remain visible until reload.
+          const tabs = await chrome.tabs.query({});
+          for (const tab of tabs) {
+            if (!tab.id) continue;
+            if (originOfUrl(tab.url) !== msg.origin) continue;
+            await chrome.tabs
+              .sendMessage(tab.id, { type: 'deactivate' })
+              .catch(() => {});
+            await clearTabActivation(tab.id);
+          }
+        }
         sendResponse({ ok: true });
         break;
       }

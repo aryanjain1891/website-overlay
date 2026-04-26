@@ -36,11 +36,12 @@ You'll see the Website Overlay icon in your toolbar. Done.
 
 | Step | What you do |
 |---|---|
-| **Activate** | Press `Alt+Shift+C` on any page, or click the 🎯 Pick pill that appears bottom-right |
+| **Activate** | Press `Alt+Shift+C` on any page, or open the extension popup and click **🎯 Start picking**. The floating Pick pill appears bottom-right. |
 | **Pick elements** | Click anything on the page. Each click tags the element with a numbered badge — ①, ②, ③. You can pick as many as you need. |
 | **Comment** | Press `Enter` (or click the green **Comment** button). A popover lists everything you picked. Write what you want changed — reference badges like "swap ① and ②" or "make ① match the style of ②". |
 | **Queue** | Hit **Queue**. Pick more things on the same page or navigate to other pages — your queue persists, and so does an in-progress draft (see *Multi-screen flows* below). |
-| **Send to AI** | Click the extension icon → **Copy for AI**. Paste into your AI tool. Done. |
+| **Send to AI** | Click the **Queue · N** pill (in-page queue panel) or the extension icon → **Copy for AI** / **Send to project**. |
+| **Disable on a site** | In the extension popup, toggle **Disable here** — Website Overlay will refuse to activate on that origin until you toggle it back on. |
 
 ### Multi-screen flows
 
@@ -49,13 +50,14 @@ Real tasks usually span screens — you want to comment on the login page *and* 
 - **Queued items persist across navigation.** Pick on `/login`, hit Queue, go to `/dashboard`, pick more, hit Queue. Both items travel together.
 - **Unfinished drafts survive navigation too.** If you pick an element and start typing but navigate before hitting Queue, your draft isn't lost. Land on any page of the same site and you'll see a **💬 Resume draft (N)** button — click it and the compose popover reopens with all your prior picks + your half-written comment, ready to keep going or submit.
 - **The popup groups your queue by screen.** Each page path gets its own section with an item count, so a flow like `/login → /dashboard → /settings` is easy to scan.
-- **Edit or remove queued items from the popup.** Each item has **Edit** (revise the comment, drop individual elements) and **Remove**. Useful for fixing a typo or trimming an over-broad pick before sending.
+- **Edit or remove queued items from the popup or in-page panel.** Both surface **Edit** (revise the comment, drop individual elements) and **Remove**. Click the floating **Queue · N** pill to manage the queue without leaving the page.
 - **Copy for AI keeps the queue.** Clicking Copy puts the formatted prompt on your clipboard but leaves the queue intact, so you can iterate on the comment, copy again, then explicitly Clear when you're done. (Send to project still removes items as it ships them, since they now live as files in your repo.)
 - **Queues are scoped per site.** Picks on `myapp.com` and picks on `news.ycombinator.com` live in separate buckets; the popup only shows the current site's queue, and the toolbar badge counts only the current site.
 
-**Keyboard shortcuts inside pick mode:**
+**Keyboard shortcuts and on-page controls:**
+- A **`?` button** lives bottom-right of the page (always visible while the extension is active). Click it any time for a panel listing every shortcut and behavior. If you forget anything in this README, that panel has the same content one click away.
 - `ESC` exits pick mode *without discarding* your draft. To throw a draft away, click **Cancel** inside the compose popover.
-- **⏸ Pause** (button next to the Pick pill) lets clicks pass through to the page so you can follow links, fill forms, or navigate to another screen without leaving pick mode. Click **▶ Resume** to keep picking. The pill switches to "⏸ Paused — clicks pass through" so the state is obvious.
+- **⏸ Pause** (the prominent amber button above the Pick pill, only visible while picking) lets clicks pass through to the page so you can follow links, fill forms, or navigate to another screen without leaving pick mode. Click **▶ Resume** to keep picking.
 - **Hold `Alt`** for momentary passthrough — useful for opening a drawer or expanding a menu without picking it. Note: browsers intercept `Alt+click` on links (it triggers a download on macOS), so use **Pause** when you need to actually navigate.
 
 ### 3. What your AI receives

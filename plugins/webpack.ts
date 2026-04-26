@@ -14,6 +14,11 @@
  */
 
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// __dirname is undefined in ESM; reconstruct it from import.meta.url so
+// path.resolve below can find the babel plugin at runtime.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 interface Options {
   /** Only stamp in development mode. Default: true */

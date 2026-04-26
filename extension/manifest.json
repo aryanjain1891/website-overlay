@@ -1,9 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Website Overlay",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Click any UI element, describe changes, hand off to your AI coding tool.",
-  "permissions": ["activeTab", "clipboardWrite", "storage"],
+  "permissions": [
+    "activeTab",
+    "clipboardWrite",
+    "storage",
+    "scripting",
+    "webNavigation"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -12,13 +18,6 @@
       "128": "icons/icon-128.png"
     }
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["dist/content.js"],
-      "run_at": "document_idle"
-    }
-  ],
   "background": {
     "service_worker": "dist/background.js",
     "type": "module"

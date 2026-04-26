@@ -1,5 +1,10 @@
 import type { QueueItem } from './types';
 
+// Strip backticks from values that get embedded inside markdown `code` spans.
+// A picked element whose text or selector contains a backtick would otherwise
+// terminate the code span early and corrupt the pasted output.
+const md = (s: string): string => s.replace(/`/g, "'");
+
 /**
  * Format the queue as structured markdown suitable for pasting into an AI
  * coding tool (Claude Code, Cursor, Windsurf, etc.).
@@ -11,18 +16,19 @@ export function formatQueueForClipboard(queue: QueueItem[]): string {
 
   for (const item of queue) {
     for (const el of item.elements) {
-      const tag = `<${el.tagName}${el.classes ? ` class="${el.classes.split(' ').slice(0, 3).join(' ')}"` : ''}>`;
-      const textSnippet = el.text ? el.text.slice(0, 60) : '';
-      lines.push(`### ${el.label} \`${tag}${textSnippet ? `${textSnippet}` : ''}\``);
+      const safeClasses = md(el.classes.split(' ').slice(0, 3).join(' '));
+      const tag = `<${el.tagName}${safeClasses ? ` class="${safeClasses}"` : ''}>`;
+      const textSnippet = el.text ? md(el.text.slice(0, 60)) : '';
+      lines.push(`### ${el.label} \`${tag}${textSnippet}\``);
       lines.push(`- **Page**: ${el.pageUrl}`);
-      lines.push(`- **Selector**: \`${el.selector}\``);
+      lines.push(`- **Selector**: \`${md(el.selector)}\``);
       if (el.sourceFile) {
         lines.push(
-          `- **Source**: \`${shortPath(el.sourceFile)}:${el.sourceLine ?? '?'}\``,
+          `- **Source**: \`${md(shortPath(el.sourceFile))}:${el.sourceLine ?? '?'}\``,
         );
       }
       if (el.attributes['data-testid']) {
-        lines.push(`- **Test ID**: \`${el.attributes['data-testid']}\``);
+        lines.push(`- **Test ID**: \`${md(el.attributes['data-testid'])}\``);
       }
       lines.push('');
     }

@@ -36,7 +36,15 @@ function isLocalhostOrigin(origin: string): boolean {
 }
 
 export function startServer(opts: SidecarOptions) {
-  const queueFile = path.resolve(opts.dir, opts.filename);
+  // Path-traversal guard: opts.filename should never escape opts.dir. Without
+  // this, a caller passing filename: "../../etc/passwd" could write outside
+  // the project. Today the CLI hardcodes the filename, but startServer is
+  // exported, so the check is cheap insurance.
+  const dirAbs = path.resolve(opts.dir);
+  const queueFile = path.resolve(dirAbs, opts.filename);
+  if (!queueFile.startsWith(dirAbs + path.sep) && queueFile !== dirAbs) {
+    throw new Error(`queue file ${queueFile} escapes directory ${dirAbs}`);
+  }
   const allowedOrigins = new Set(
     opts.origins.map(normalizeOrigin).filter((o): o is string => !!o),
   );
@@ -48,6 +56,23 @@ export function startServer(opts: SidecarOptions) {
     return isLocalhostOrigin(origin);
   };
 
+  // Authenticate the *caller* — extension fetches set Origin to
+  // chrome-extension://<id>; page fetches set it to the page origin. Reject
+  // anything else (curl-from-internet, server-side spoof) before we touch the
+  // payload.
+  const callerAllowed = (req: http.IncomingMessage): boolean => {
+    const header =
+      (req.headers.origin as string | undefined) ||
+      (req.headers.referer as string | undefined);
+    if (!header) return false;
+    if (header.startsWith('chrome-extension://')) return true;
+    try {
+      return originAllowed(new URL(header).origin);
+    } catch {
+      return false;
+    }
+  };
+
   const extractOrigin = (payload: any): string | undefined => {
     const url: string | undefined = payload?.elements?.[0]?.pageUrl;
     if (!url) return undefined;
@@ -56,6 +81,22 @@ export function startServer(opts: SidecarOptions) {
     } catch {
       return undefined;
     }
+  };
+
+  // Serialize /append writes. fs.appendFileSync is only atomic for tiny
+  // writes on POSIX; concurrent picks with rich payloads could otherwise
+  // splice and corrupt the JSONL file (one bad line breaks every consumer).
+  let writeChain: Promise<void> = Promise.resolve();
+  const appendLine = (line: string): Promise<void> => {
+    writeChain = writeChain.then(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          fs.appendFile(queueFile, line + '\n', (err) =>
+            err ? reject(err) : resolve(),
+          );
+        }),
+    );
+    return writeChain;
   };
 
   const json = (res: http.ServerResponse, status: number, data: unknown) => {
@@ -103,6 +144,9 @@ export function startServer(opts: SidecarOptions) {
     }
 
     if (url.pathname === '/append' && req.method === 'POST') {
+      if (!callerAllowed(req)) {
+        return json(res, 403, { ok: false, error: 'caller not allowed' });
+      }
       try {
         const body = await readBody(req);
         const parsed = body ? JSON.parse(body) : {};
@@ -115,7 +159,7 @@ export function startServer(opts: SidecarOptions) {
           });
         }
         const line = JSON.stringify({ ...parsed, queuedAt: new Date().toISOString() });
-        fs.appendFileSync(queueFile, line + '\n');
+        await appendLine(line);
         return json(res, 200, { ok: true, file: queueFile });
       } catch (e) {
         return json(res, 500, { ok: false, error: (e as Error).message });
@@ -123,6 +167,9 @@ export function startServer(opts: SidecarOptions) {
     }
 
     if (url.pathname === '/clear' && req.method === 'POST') {
+      if (!callerAllowed(req)) {
+        return json(res, 403, { ok: false, error: 'caller not allowed' });
+      }
       try {
         if (fs.existsSync(queueFile)) fs.unlinkSync(queueFile);
         return json(res, 200, { ok: true });

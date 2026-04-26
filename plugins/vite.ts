@@ -76,20 +76,55 @@ export default function websiteOverlayVite(opts: Options = {}): Plugin[] {
           req.on('end', () => resolve(body));
         });
 
+      // Only let our extension or the dev server's own pages write to the
+      // queue file. Without this any tab in the user's browser could fetch
+      // /__wo/append while the dev server is running.
+      const callerAllowed = (req: any): boolean => {
+        const header: string | undefined = req.headers.origin || req.headers.referer;
+        if (!header) return false;
+        if (header.startsWith('chrome-extension://')) return true;
+        try {
+          const o = new URL(header).origin;
+          return (
+            o === `http://localhost:${server.config.server.port ?? ''}` ||
+            /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(o)
+          );
+        } catch {
+          return false;
+        }
+      };
+
+      // Same chained-promise pattern as the standalone sidecar — prevents
+      // interleaved writes when multiple picks land in the same tick.
+      let writeChain: Promise<void> = Promise.resolve();
+      const appendLine = (line: string): Promise<void> => {
+        writeChain = writeChain.then(
+          () =>
+            new Promise<void>((resolve, reject) => {
+              fs.appendFile(queueFile, line + '\n', (err: any) =>
+                err ? reject(err) : resolve(),
+              );
+            }),
+        );
+        return writeChain;
+      };
+
       server.middlewares.use('/__wo/ping', (_req: any, res: any) =>
         json(res, 200, { ok: true }),
       );
 
       server.middlewares.use('/__wo/append', async (req: any, res: any) => {
         if (req.method !== 'POST') return json(res, 405, { ok: false });
+        if (!callerAllowed(req)) return json(res, 403, { ok: false, error: 'caller not allowed' });
         const body = await readBody(req);
         const parsed = body ? JSON.parse(body) : {};
-        fs.appendFileSync(queueFile, JSON.stringify({ ...parsed, queuedAt: new Date().toISOString() }) + '\n');
+        await appendLine(JSON.stringify({ ...parsed, queuedAt: new Date().toISOString() }));
         json(res, 200, { ok: true, file: queueFile });
       });
 
       server.middlewares.use('/__wo/clear', async (req: any, res: any) => {
         if (req.method !== 'POST') return json(res, 405, { ok: false });
+        if (!callerAllowed(req)) return json(res, 403, { ok: false, error: 'caller not allowed' });
         if (fs.existsSync(queueFile)) fs.unlinkSync(queueFile);
         json(res, 200, { ok: true });
       });
