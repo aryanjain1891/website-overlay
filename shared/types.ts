@@ -33,14 +33,31 @@ export interface QueueItem {
   queuedAt?: string;
 }
 
+/** Queue storage is bucketed by origin (scheme + host + port). */
+export type QueueByOrigin = Record<string, QueueItem[]>;
+
+/** Response shape from the background for `getQueue`. */
+export interface GetQueueResponse {
+  /** Items for the caller's origin (or all, if origin omitted). */
+  queue: QueueItem[];
+  /** Current origin the response is scoped to, if any. */
+  origin?: string;
+  /** Item counts for every origin that has pending items. */
+  countsByOrigin: Record<string, number>;
+  sidecarStatus: SidecarStatus;
+  /** Origins the sidecar is willing to accept. Empty when disconnected. */
+  sidecarOrigins: string[];
+}
+
 /** Messages sent between content script ↔ background script. */
 export type Message =
   | { type: 'addToQueue'; item: QueueItem }
-  | { type: 'getQueue' }
-  | { type: 'clearQueue' }
-  | { type: 'flushToClipboard' }
+  | { type: 'getQueue'; origin?: string }
+  | { type: 'clearQueue'; origin?: string }
+  | { type: 'flushToClipboard'; origin?: string }
   | { type: 'flushToSidecar' }
   | { type: 'getSidecarStatus' }
-  | { type: 'queueUpdated'; count: number };
+  | { type: 'updateQueue'; origin: string; queue: QueueItem[] }
+  | { type: 'queueUpdated'; count: number; origin: string };
 
 export type SidecarStatus = 'connected' | 'disconnected';

@@ -34,6 +34,19 @@
     #queue-list {
       max-height: 260px; overflow-y: auto;
     }
+    .route-group + .route-group { border-top: 1px solid #e5e7eb; }
+    .route-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 16px; background: #f9fafb;
+      font: 600 11px ui-monospace, monospace; color: #374151;
+      border-bottom: 1px solid #f3f4f6;
+      position: sticky; top: 0; z-index: 1;
+    }
+    .route-path { flex: 1; min-width: 0; word-break: break-all; }
+    .route-count {
+      font: 600 10px sans-serif; color: #fff; background: #6b7280;
+      padding: 1px 7px; border-radius: 999px;
+    }
     .queue-item {
       padding: 10px 16px; border-bottom: 1px solid #f3f4f6;
       cursor: default;
@@ -41,10 +54,48 @@
     .queue-item:hover { background: #fafafa; }
     .queue-item .elements { font: 11px ui-monospace, monospace; color: #374151; margin-bottom: 3px; }
     .queue-item .comment { font-size: 12px; color: #111827; white-space: pre-wrap; }
-    .queue-item .remove {
-      margin-top: 4px; font: 11px sans-serif; color: #dc2626;
-      background: none; border: 0; cursor: pointer; padding: 0;
+    .queue-item .item-actions {
+      margin-top: 6px; display: flex; gap: 10px;
     }
+    .queue-item .item-actions button {
+      font: 11px sans-serif; background: none; border: 0; cursor: pointer; padding: 0;
+    }
+    .queue-item .edit { color: #2563eb; }
+    .queue-item .remove { color: #dc2626; }
+    .queue-item.editing { background: #f9fafb; }
+    .queue-item .edit-comment {
+      width: 100%; min-height: 60px; margin-top: 6px;
+      border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px;
+      font: 12px -apple-system, sans-serif; resize: vertical; outline: none;
+    }
+    .queue-item .edit-comment:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+    .queue-item .edit-actions {
+      margin-top: 8px; display: flex; gap: 6px; justify-content: flex-end;
+    }
+    .queue-item .edit-actions button {
+      font: 600 11px sans-serif; padding: 4px 10px;
+      border-radius: 4px; cursor: pointer;
+    }
+    .queue-item .save { background: #111827; color: #fff; border: 0; }
+    .queue-item .cancel { background: #fff; color: #6b7280; border: 1px solid #d1d5db; }
+    .el-chip {
+      display: inline-flex; align-items: center; gap: 3px; margin-right: 6px;
+      margin-bottom: 3px;
+    }
+    .el-chip .el-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 14px; height: 14px; padding: 0 3px;
+      background: #2563eb; color: #fff; border-radius: 999px;
+      font: 600 9px sans-serif;
+    }
+    .el-chip code { font-size: 10px; }
+    .el-chip .el-remove {
+      width: 14px; height: 14px; line-height: 12px; text-align: center;
+      border: 0; background: #e5e7eb; color: #6b7280;
+      border-radius: 999px; cursor: pointer; padding: 0;
+      font: 600 11px sans-serif;
+    }
+    .el-chip .el-remove:hover { background: #fecaca; color: #b91c1c; }
     .empty-state {
       padding: 24px 16px; text-align: center; color: #9ca3af; font-size: 12px;
       line-height: 1.5;
@@ -68,11 +119,15 @@
     <h1>Website Overlay</h1>
     <span class="badge" id="count-badge">0</span>
   </header>
+  <div style="padding:6px 16px;font:11px ui-monospace,monospace;color:#374151;border-bottom:1px solid #f3f4f6;word-break:break-all">
+    <span style="color:#9ca3af">Origin:</span> <span id="origin-label">—</span>
+  </div>
   <div class="status-bar">
     <div class="status-dot disconnected" id="status-dot"></div>
     <span id="status-text">Sidecar: checking…</span>
   </div>
   <div id="queue-list"></div>
+  <div id="other-origins" style="display:none;border-top:1px solid #f3f4f6;padding-bottom:6px"></div>
   <div class="actions">
     <button class="btn-copy" id="btn-copy" disabled>📋 Copy for AI</button>
     <button class="btn-send" id="btn-send" disabled>📡 Send to project</button>

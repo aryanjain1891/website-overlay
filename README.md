@@ -39,8 +39,24 @@ You'll see the Website Overlay icon in your toolbar. Done.
 | **Activate** | Press `Alt+Shift+C` on any page, or click the 🎯 Pick pill that appears bottom-right |
 | **Pick elements** | Click anything on the page. Each click tags the element with a numbered badge — ①, ②, ③. You can pick as many as you need. |
 | **Comment** | Press `Enter` (or click the green **Comment** button). A popover lists everything you picked. Write what you want changed — reference badges like "swap ① and ②" or "make ① match the style of ②". |
-| **Queue** | Hit **Queue**. Pick more things on the same page or navigate to other pages. Your queue persists. |
+| **Queue** | Hit **Queue**. Pick more things on the same page or navigate to other pages — your queue persists, and so does an in-progress draft (see *Multi-screen flows* below). |
 | **Send to AI** | Click the extension icon → **Copy for AI**. Paste into your AI tool. Done. |
+
+### Multi-screen flows
+
+Real tasks usually span screens — you want to comment on the login page *and* the dashboard that comes after it. Website Overlay handles this:
+
+- **Queued items persist across navigation.** Pick on `/login`, hit Queue, go to `/dashboard`, pick more, hit Queue. Both items travel together.
+- **Unfinished drafts survive navigation too.** If you pick an element and start typing but navigate before hitting Queue, your draft isn't lost. Land on any page of the same site and you'll see a **💬 Resume draft (N)** button — click it and the compose popover reopens with all your prior picks + your half-written comment, ready to keep going or submit.
+- **The popup groups your queue by screen.** Each page path gets its own section with an item count, so a flow like `/login → /dashboard → /settings` is easy to scan.
+- **Edit or remove queued items from the popup.** Each item has **Edit** (revise the comment, drop individual elements) and **Remove**. Useful for fixing a typo or trimming an over-broad pick before sending.
+- **Copy for AI keeps the queue.** Clicking Copy puts the formatted prompt on your clipboard but leaves the queue intact, so you can iterate on the comment, copy again, then explicitly Clear when you're done. (Send to project still removes items as it ships them, since they now live as files in your repo.)
+- **Queues are scoped per site.** Picks on `myapp.com` and picks on `news.ycombinator.com` live in separate buckets; the popup only shows the current site's queue, and the toolbar badge counts only the current site.
+
+**Keyboard shortcuts inside pick mode:**
+- `ESC` exits pick mode *without discarding* your draft. To throw a draft away, click **Cancel** inside the compose popover.
+- **⏸ Pause** (button next to the Pick pill) lets clicks pass through to the page so you can follow links, fill forms, or navigate to another screen without leaving pick mode. Click **▶ Resume** to keep picking. The pill switches to "⏸ Paused — clicks pass through" so the state is obvious.
+- **Hold `Alt`** for momentary passthrough — useful for opening a drawer or expanding a menu without picking it. Note: browsers intercept `Alt+click` on links (it triggers a download on macOS), so use **Pause** when you need to actually navigate.
 
 ### 3. What your AI receives
 
@@ -73,7 +89,22 @@ If you're working on a project locally, you can skip the clipboard entirely. Run
 npx website-overlay
 ```
 
-This starts a tiny local server. The extension auto-detects it and unlocks a **Send to project** button in the popup. Clicking it writes your picks directly to a file in your project that your AI tool can read. Tell your AI *"apply the overlay queue"* and it reads the file and applies every change.
+This starts a tiny local server. The extension auto-detects it and unlocks a **Send to project** button in the popup. Clicking it writes your picks directly to `.website-overlay.jsonl` in your project so your AI tool can read them. Tell your AI *"apply the overlay queue"* and it reads the file and applies every change.
+
+**Tell the sidecar which sites belong to this project.** So picks from unrelated tabs (say, you were browsing Twitter) never leak into your project's queue file:
+
+```bash
+# One or more --origin flags — repeatable
+npx website-overlay --origin http://localhost:3000 --origin https://staging.myapp.com
+```
+
+Or commit a `.website-overlay.json` in your project root:
+
+```json
+{ "origins": ["http://localhost:3000", "https://staging.myapp.com"] }
+```
+
+The sidecar will reject anything picked on an origin that isn't on the list. If you skip origins entirely, it falls back to accepting any `localhost` / `127.0.0.1` origin so the zero-config local-dev flow still works. The popup tells you whether the sidecar claims the current site (✓) or not.
 
 ### Exact source locations (for React / Next.js / Webpack projects)
 

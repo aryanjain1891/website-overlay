@@ -47,6 +47,112 @@ export function mount() {
   document.documentElement.appendChild(host);
   const shadow = host.attachShadow({ mode: 'closed' });
 
+  // ── Drawer/modal anchoring ──────────────────────────────
+  // When the user picks an element that lives inside a drawer/dialog/popup,
+  // we move the shadow host INTO that container. The drawer's
+  // outside-click check (`!drawer.contains(target)` or composedPath-based)
+  // then sees our host as *inside* the drawer and leaves it open.
+  //
+  // Detection is best-effort across frameworks: explicit ARIA/DOM markers
+  // first, then a positional fallback (closest fixed/absolute ancestor with
+  // the highest z-index containing the picked element).
+  const DEFAULT_HOST_PARENT = document.documentElement;
+  const DRAWER_CLASS_RE =
+    /drawer|modal|sheet|sidebar|popover|popup|panel|dialog|flyout|overlay|offcanvas/i;
+
+  function looksLikeDrawer(el: Element): boolean {
+    const role = el.getAttribute?.('role') || '';
+    if (el.tagName === 'DIALOG') return true;
+    if (el.hasAttribute?.('aria-modal')) return true;
+    if (['dialog', 'complementary', 'menu', 'listbox', 'tooltip'].includes(role)) return true;
+    const cls = typeof el.className === 'string' ? el.className : '';
+    if (DRAWER_CLASS_RE.test(cls)) return true;
+    if (el.hasAttribute?.('data-radix-popper-content-wrapper')) return true;
+    if (el.hasAttribute?.('data-headlessui-state')) return true;
+    if (el.hasAttribute?.('data-floating-ui-portal')) return true;
+    const dataState = el.getAttribute?.('data-state');
+    if (dataState && /open|visible/i.test(dataState)) return true;
+    return false;
+  }
+
+  function findDrawerAncestor(el: Element | null): Element | null {
+    if (!el) return null;
+    // Phase 1 — explicit markers walking up the tree.
+    let cur: Element | null = el;
+    while (cur && cur !== document.body && cur !== document.documentElement) {
+      if (looksLikeDrawer(cur)) return cur;
+      cur = cur.parentElement;
+    }
+    // Phase 2 — positional fallback: the highest-z-index fixed/absolute
+    // ancestor that contains the picked element.
+    cur = el;
+    let best: Element | null = null;
+    let bestZ = -Infinity;
+    while (cur && cur !== document.body && cur !== document.documentElement) {
+      const cs = getComputedStyle(cur);
+      if (cs.position === 'fixed' || cs.position === 'absolute') {
+        const z = parseInt(cs.zIndex, 10);
+        if (!isNaN(z) && z >= bestZ) {
+          bestZ = z;
+          best = cur;
+        }
+      }
+      cur = cur.parentElement;
+    }
+    // Only treat positional match as a drawer if it has nontrivial z-index;
+    // otherwise we'd anchor into random positioned wrappers.
+    return bestZ > 0 ? best : null;
+  }
+
+  /**
+   * Re-parenting host into an ancestor that has `transform`, `perspective`,
+   * `filter`, or `will-change: transform` would break our `position: fixed`
+   * positioning (it becomes fixed-relative-to-that-ancestor). Detect that.
+   */
+  function hasTransformedAncestor(target: Element): boolean {
+    let cur: Element | null = target;
+    while (cur && cur !== document.documentElement) {
+      const cs = getComputedStyle(cur);
+      if (
+        cs.transform !== 'none' ||
+        cs.perspective !== 'none' ||
+        cs.filter !== 'none' ||
+        /transform/.test(cs.willChange)
+      ) {
+        return true;
+      }
+      cur = cur.parentElement;
+    }
+    return false;
+  }
+
+  function anchorHostTo(target: Element) {
+    if (host.parentElement === target) return;
+    if (hasTransformedAncestor(target)) {
+      // Don't move — transformed ancestor would clip/offset our fixed UI.
+      // Drawer will close in this case; there's no safe in-DOM anchor.
+      return;
+    }
+    target.appendChild(host);
+  }
+
+  function restoreHostParent() {
+    if (host.parentElement !== DEFAULT_HOST_PARENT) {
+      DEFAULT_HOST_PARENT.appendChild(host);
+    }
+  }
+
+  // Frameworks (React, Vue) re-render and may detach our host along with the
+  // drawer. Watch for that and reattach to documentElement so the overlay
+  // never disappears.
+  const hostWatcher = new MutationObserver(() => {
+    if (!document.documentElement.contains(host)) {
+      DEFAULT_HOST_PARENT.appendChild(host);
+    }
+  });
+  hostWatcher.observe(document.documentElement, { childList: true, subtree: true });
+
+
   // Inject styles into shadow
   const style = document.createElement('style');
   style.textContent = `
@@ -127,6 +233,45 @@ export function mount() {
   let composeCommentDraft = '';
   let composeOpen = false;
   let queueCount = 0;
+  let altHeld = false;
+  let paused = false; // user-toggled passthrough; survives Alt key state
+
+  // ── Cross-page draft persistence ────────────────────────
+  // Compose buffer + comment survive navigation within the same origin so a
+  // user can pick on /login, navigate to /dashboard, pick more, then submit.
+  const DRAFT_KEY = `wo:draft:${location.origin}`;
+
+  interface PersistedDraft {
+    elements: PickedElement[];
+    comment: string;
+  }
+
+  let saveDraftQueued = false;
+  function saveDraft() {
+    if (saveDraftQueued) return;
+    saveDraftQueued = true;
+    queueMicrotask(async () => {
+      saveDraftQueued = false;
+      const payload: PersistedDraft = {
+        elements: buffer.map((s) => ({ ...s.picked })),
+        comment: composeCommentDraft,
+      };
+      if (payload.elements.length === 0 && !payload.comment) {
+        await chrome.storage.local.remove(DRAFT_KEY).catch(() => {});
+      } else {
+        await chrome.storage.local.set({ [DRAFT_KEY]: payload }).catch(() => {});
+      }
+    });
+  }
+
+  async function clearDraft() {
+    await chrome.storage.local.remove(DRAFT_KEY).catch(() => {});
+  }
+
+  async function loadDraft(): Promise<PersistedDraft | null> {
+    const data = await chrome.storage.local.get(DRAFT_KEY).catch(() => ({} as any));
+    return (data[DRAFT_KEY] as PersistedDraft) ?? null;
+  }
 
   // ── DOM elements ────────────────────────────────────────
   const highlight = document.createElement('div');
@@ -140,6 +285,12 @@ export function mount() {
   const queueBtn = document.createElement('button');
   queueBtn.className = 'wo-btn wo-queue-btn';
   controls.appendChild(queueBtn);
+
+  const pauseBtn = document.createElement('button');
+  pauseBtn.className = 'wo-btn wo-pause-btn';
+  pauseBtn.style.cssText =
+    'padding:8px 12px;border-radius:999px;background:#fff;color:#111827;border:1px solid #d1d5db;font:500 12px -apple-system,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,0.12);pointer-events:auto;display:none;';
+  controls.appendChild(pauseBtn);
 
   const pill = document.createElement('button');
   pill.className = 'wo-btn wo-pill';
@@ -194,6 +345,7 @@ export function mount() {
       shadow.appendChild(badge);
     }
     buffer.push({ picked, el, badge });
+    saveDraft();
   }
 
   function relabelBuffer() {
@@ -201,6 +353,7 @@ export function mount() {
       slot.picked.label = circleNumber(i);
       if (slot.badge) slot.badge.textContent = slot.picked.label;
     });
+    saveDraft();
   }
 
   function clearBuffer() {
@@ -210,6 +363,7 @@ export function mount() {
     buffer = [];
     composeCommentDraft = '';
     editingIndex = null;
+    clearDraft();
   }
 
   function refreshBadges() {
@@ -223,8 +377,14 @@ export function mount() {
   }
 
   function updateCommentBtn() {
-    if (pickMode && buffer.length > 0 && !composeOpen) {
-      commentBtn.textContent = `💬 Comment (${buffer.length}) — Enter`;
+    if (buffer.length > 0 && !composeOpen) {
+      const anchored = buffer.filter((s) => s.el !== null).length;
+      const label = pickMode
+        ? `💬 Comment (${buffer.length}) — Enter`
+        : anchored < buffer.length
+          ? `💬 Resume draft (${buffer.length})`
+          : `💬 Comment (${buffer.length})`;
+      commentBtn.textContent = label;
       commentBtn.style.display = 'block';
     } else {
       commentBtn.style.display = 'none';
@@ -233,13 +393,19 @@ export function mount() {
 
   function renderPill() {
     if (pickMode) {
-      pill.textContent = buffer.length > 0
-        ? `● Picking · ${buffer.length} selected`
-        : '● Picking — ESC to cancel';
+      const passing = paused || altHeld;
+      pill.textContent = passing
+        ? '⏸ Paused — clicks pass through'
+        : buffer.length > 0
+          ? `● Picking · ${buffer.length}`
+          : '● Picking — ESC to exit';
       pill.classList.add('picking');
+      pauseBtn.style.display = 'inline-block';
+      pauseBtn.textContent = paused ? '▶ Resume' : '⏸ Pause';
     } else {
       pill.textContent = '🎯 Pick';
       pill.classList.remove('picking');
+      pauseBtn.style.display = 'none';
     }
     if (queueCount > 0) {
       queueBtn.style.display = 'inline-block';
@@ -258,8 +424,10 @@ export function mount() {
 
   function exitPick() {
     pickMode = false;
+    paused = false;
     document.documentElement.style.cursor = '';
     highlight.style.display = 'none';
+    restoreHostParent();
     renderPill();
     updateCommentBtn();
   }
@@ -317,6 +485,7 @@ export function mount() {
 
     textarea.addEventListener('input', () => {
       composeCommentDraft = textarea.value;
+      saveDraft();
     });
 
     popover.querySelectorAll<HTMLButtonElement>('[data-rmref]').forEach((b) => {
@@ -328,6 +497,7 @@ export function mount() {
         buffer.splice(i, 1);
         relabelBuffer();
         composeCommentDraft = textarea.value;
+        saveDraft();
         openComposePopover();
       });
     });
@@ -354,6 +524,7 @@ export function mount() {
     popover.style.display = 'none';
     clearBuffer();
     exitPick();
+    restoreHostParent();
   }
 
   async function submitCompose() {
@@ -374,13 +545,19 @@ export function mount() {
     clearBuffer();
     renderPill();
     exitPick();
+    restoreHostParent();
   }
 
   // ── Event wiring ────────────────────────────────────────
+  // When Alt is held in pick mode, picks pass through to the page so the user
+  // can open drawers/menus/dropdowns before picking elements inside them.
+  const isPassthrough = (e: MouseEvent | KeyboardEvent) => e.altKey && !e.shiftKey;
+
   window.addEventListener(
     'mousemove',
     (e) => {
       if (!pickMode || composeOpen) { highlight.style.display = 'none'; return; }
+      if (paused || isPassthrough(e)) { highlight.style.display = 'none'; return; }
       const el = document.elementFromPoint(e.clientX, e.clientY);
       if (!el || isOurs(el)) { highlight.style.display = 'none'; return; }
       const r = el.getBoundingClientRect();
@@ -399,22 +576,42 @@ export function mount() {
       if (!pickMode || composeOpen) return;
       const el = e.target as Element | null;
       if (!el || isOurs(el)) return;
+      // Pause toggled OR Alt held → let the page handle the click normally.
+      // (Pause is the recommended path; Alt is kept for muscle memory but has
+      // browser-native side effects like downloading <a href> targets.)
+      if (paused || isPassthrough(e)) return;
       e.preventDefault();
       e.stopPropagation();
 
       const picked = makePickedElement(el, buffer.length);
       addBufferSlot(picked, el);
+      // If this pick is inside a drawer/modal, move our host into that drawer
+      // so subsequent clicks on our UI (Comment button, popover, textarea)
+      // don't count as "outside" and close the drawer.
+      const drawer = findDrawerAncestor(el);
+      if (drawer) anchorHostTo(drawer);
       renderPill();
       updateCommentBtn();
     },
     true,
   );
 
+  // Keep the pill hint in sync with Alt being held (visual affordance).
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Alt' && !altHeld) { altHeld = true; if (pickMode) renderPill(); }
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'Alt' && altHeld) { altHeld = false; if (pickMode) renderPill(); }
+  });
+  window.addEventListener('blur', () => { if (altHeld) { altHeld = false; renderPill(); } });
+
   window.addEventListener('keydown', (e) => {
     if (composeOpen) return;
     if (pickMode && e.key === 'Escape') {
+      // Only exit pick mode; keep the buffer intact so prior picks (including
+      // cross-page drafts) are preserved. Use the Cancel button in the
+      // compose popover to explicitly discard the draft.
       e.preventDefault();
-      clearBuffer();
       exitPick();
       return;
     }
@@ -426,7 +623,7 @@ export function mount() {
     }
     if (e.altKey && e.shiftKey && (e.key === 'C' || e.key === 'c' || e.code === 'KeyC')) {
       e.preventDefault();
-      if (pickMode) { clearBuffer(); exitPick(); } else enterPick();
+      if (pickMode) exitPick(); else enterPick();
     }
   });
 
@@ -435,7 +632,15 @@ export function mount() {
 
   pill.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (pickMode) { clearBuffer(); exitPick(); } else enterPick();
+    if (pickMode) exitPick(); else enterPick();
+  });
+
+  pauseBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!pickMode) return;
+    paused = !paused;
+    highlight.style.display = 'none';
+    renderPill();
   });
 
   queueBtn.addEventListener('click', (e) => {
@@ -463,6 +668,25 @@ export function mount() {
       queueCount = response.queue.length;
       renderPill();
     }
+  });
+
+  // Hydrate any compose draft left behind when navigating within this origin.
+  loadDraft().then((draft) => {
+    if (!draft) return;
+    if (draft.elements.length === 0 && !draft.comment) return;
+    for (let i = 0; i < draft.elements.length; i++) {
+      const picked: PickedElement = { ...draft.elements[i], label: circleNumber(i) };
+      let el: Element | null = null;
+      try {
+        el = document.querySelector(picked.selector);
+      } catch {
+        el = null;
+      }
+      addBufferSlot(picked, el);
+    }
+    composeCommentDraft = draft.comment;
+    renderPill();
+    updateCommentBtn();
   });
 
   renderPill();
