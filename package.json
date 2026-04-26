@@ -17,7 +17,7 @@
     "LICENSE"
   ],
   "bin": {
-    "website-overlay": "./dist/cli.mjs"
+    "website-overlay": "dist/cli.mjs"
   },
   "exports": {
     ".": "./dist/index.js",
