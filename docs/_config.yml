@@ -1,0 +1,4 @@
+title: Website Overlay
+description: Click any UI element on any website, describe what should change, and hand the changes to your AI coding tool in one paste.
+theme: jekyll-theme-minimal
+permalink: /:title/

@@ -84,9 +84,9 @@ Paste each into the matching field in the dashboard:
 - **clipboardWrite** — "Used by the 'Copy for AI' action to place a formatted prompt on the user's clipboard."
 
 ### Privacy policy URL
-> https://aryanjain1891.github.io/website-overlay/privacy
+> https://aryanjain1891.github.io/website-overlay/privacy/
 
-(or wherever you end up hosting `PRIVACY.md`)
+Hosted via GitHub Pages from the `docs/` folder of this repo (`docs/privacy.md`). The Pages site also has a small landing index.
 
 ## Assets needed
 

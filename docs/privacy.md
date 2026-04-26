@@ -1,3 +1,8 @@
+---
+title: Privacy
+permalink: /privacy/
+---
+
 # Privacy Policy
 
 _Last updated: 2026-04-27_
@@ -57,8 +62,8 @@ The sidecar (`npx website-overlay`) runs entirely on your computer. It accepts P
 
 ## Open source
 
-The full source code of both the extension and the sidecar is public at https://github.com/aryanjain1891/website-overlay. You can read every line and audit anything described here.
+The full source code of both the extension and the sidecar is public at [github.com/aryanjain1891/website-overlay](https://github.com/aryanjain1891/website-overlay). You can read every line and audit anything described here.
 
 ## Contact
 
-Questions, concerns, or anything that looks wrong? Open an issue at https://github.com/aryanjain1891/website-overlay/issues.
+Questions, concerns, or anything that looks wrong? Open an issue at [github.com/aryanjain1891/website-overlay/issues](https://github.com/aryanjain1891/website-overlay/issues).
