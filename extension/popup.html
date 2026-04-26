@@ -3,115 +3,343 @@
 <head>
   <meta charset="UTF-8">
   <style>
+    /* ───────── Design tokens ───────── */
+    :root {
+      --bg: #ffffff;
+      --bg-2: #f8fafc;
+      --bg-3: #f1f5f9;
+      --border: rgba(15,23,42,0.08);
+      --border-strong: rgba(15,23,42,0.16);
+      --text: #0f172a;
+      --text-muted: #475569;
+      --text-faint: #94a3b8;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-text: #ffffff;
+      --accent-bg: #eef2ff;
+      --success: #10b981;
+      --danger: #ef4444;
+      --shadow-sm: 0 1px 2px rgba(15,23,42,0.04);
+      --shadow-md: 0 4px 16px rgba(15,23,42,0.08), 0 1px 4px rgba(15,23,42,0.04);
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --pill: 999px;
+      --tx: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+      --font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      --mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f172a;
+        --bg-2: #1e293b;
+        --bg-3: #334155;
+        --border: rgba(248,250,252,0.08);
+        --border-strong: rgba(248,250,252,0.16);
+        --text: #f1f5f9;
+        --text-muted: #cbd5e1;
+        --text-faint: #64748b;
+        --accent: #818cf8;
+        --accent-hover: #6366f1;
+        --accent-bg: rgba(99,102,241,0.18);
+        --success: #34d399;
+        --danger: #f87171;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+        --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+      }
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      width: 360px; max-height: 500px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      font-size: 13px; color: #111827; background: #fff;
+      width: 380px; max-height: 560px;
+      font-family: var(--font);
+      font-size: 13px;
+      color: var(--text);
+      background: var(--bg);
       overflow-y: auto;
     }
+
+    /* ───────── Header ───────── */
     header {
-      padding: 14px 16px 10px;
-      border-bottom: 1px solid #e5e7eb;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
       display: flex; align-items: center; gap: 10px;
     }
-    header h1 { font-size: 14px; font-weight: 700; }
-    header .badge {
-      font-size: 11px; font-weight: 600;
-      padding: 2px 8px; border-radius: 999px;
-      background: #2563eb; color: #fff;
+    header h1 {
+      font: 700 14px var(--font);
+      letter-spacing: -0.2px;
+      flex: 1;
     }
+    header .badge {
+      font: 700 11px var(--font);
+      padding: 2px 9px;
+      border-radius: var(--pill);
+      background: var(--accent);
+      color: var(--accent-text);
+      min-width: 22px;
+      text-align: center;
+    }
+
+    /* ───────── Origin row ───────── */
+    .origin-row {
+      padding: 8px 16px;
+      font: 11px var(--mono);
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      word-break: break-all;
+      background: var(--bg-2);
+    }
+    .origin-row .label {
+      color: var(--text-faint);
+      font: 11px var(--font);
+      margin-right: 6px;
+    }
+
+    /* ───────── Status ───────── */
     .status-bar {
-      padding: 8px 16px; font-size: 11px;
-      display: flex; align-items: center; gap: 6px;
-      border-bottom: 1px solid #f3f4f6; color: #6b7280;
+      padding: 9px 16px;
+      font-size: 11px;
+      display: flex; align-items: center; gap: 7px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
     }
     .status-dot {
-      width: 7px; height: 7px; border-radius: 50%;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--text-faint);
+      flex: 0 0 auto;
     }
-    .status-dot.connected { background: #16a34a; }
-    .status-dot.disconnected { background: #d1d5db; }
+    .status-dot.connected { background: var(--success); }
+
+    /* ───────── Activation row ───────── */
+    .activation-row {
+      padding: 12px 16px;
+      display: flex; gap: 10px; align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+    #btn-pick {
+      flex: 1;
+      padding: 9px 14px;
+      border-radius: var(--radius-sm);
+      background: var(--accent);
+      color: var(--accent-text);
+      border: 0;
+      font: 600 12.5px var(--font);
+      cursor: pointer;
+      transition: background var(--tx), opacity var(--tx);
+    }
+    #btn-pick:hover:not(:disabled) { background: var(--accent-hover); }
+    #btn-pick:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      background: var(--bg-3);
+      color: var(--text-faint);
+    }
+    .toggle-disabled {
+      display: flex; align-items: center; gap: 6px;
+      font: 500 11px var(--font);
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+      padding: 5px 9px;
+      border-radius: var(--radius-sm);
+      transition: background var(--tx);
+    }
+    .toggle-disabled:hover { background: var(--bg-2); }
+    .toggle-disabled input { margin: 0; cursor: pointer; accent-color: var(--accent); }
+
+    /* ───────── Queue list ───────── */
     #queue-list {
-      max-height: 260px; overflow-y: auto;
+      max-height: 280px;
+      overflow-y: auto;
     }
-    .route-group + .route-group { border-top: 1px solid #e5e7eb; }
+    .route-group + .route-group { border-top: 1px solid var(--border); }
     .route-header {
       display: flex; align-items: center; gap: 8px;
-      padding: 6px 16px; background: #f9fafb;
-      font: 600 11px ui-monospace, monospace; color: #374151;
-      border-bottom: 1px solid #f3f4f6;
-      position: sticky; top: 0; z-index: 1;
+      padding: 8px 16px;
+      background: var(--bg-2);
+      font: 600 11px var(--mono);
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      letter-spacing: 0.2px;
     }
-    .route-path { flex: 1; min-width: 0; word-break: break-all; }
+    .route-path {
+      flex: 1;
+      min-width: 0;
+      word-break: break-all;
+    }
     .route-count {
-      font: 600 10px sans-serif; color: #fff; background: #6b7280;
-      padding: 1px 7px; border-radius: 999px;
+      font: 700 10px var(--font);
+      color: var(--accent-text);
+      background: var(--accent);
+      padding: 2px 8px;
+      border-radius: var(--pill);
     }
     .queue-item {
-      padding: 10px 16px; border-bottom: 1px solid #f3f4f6;
-      cursor: default;
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border);
+      transition: background var(--tx);
     }
-    .queue-item:hover { background: #fafafa; }
-    .queue-item .elements { font: 11px ui-monospace, monospace; color: #374151; margin-bottom: 3px; }
-    .queue-item .comment { font-size: 12px; color: #111827; white-space: pre-wrap; }
+    .queue-item:last-child { border-bottom: 0; }
+    .queue-item:hover { background: var(--bg-2); }
+    .queue-item .elements {
+      display: flex; flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .queue-item .comment {
+      font: 13px var(--font);
+      color: var(--text);
+      white-space: pre-wrap;
+      line-height: 1.45;
+    }
+    .queue-item.editing { background: var(--bg-2); }
     .queue-item .item-actions {
-      margin-top: 6px; display: flex; gap: 10px;
+      margin-top: 8px;
+      display: flex;
+      gap: 14px;
     }
     .queue-item .item-actions button {
-      font: 11px sans-serif; background: none; border: 0; cursor: pointer; padding: 0;
+      font: 500 12px var(--font);
+      background: none;
+      border: 0;
+      cursor: pointer;
+      padding: 0;
+      transition: opacity var(--tx);
     }
-    .queue-item .edit { color: #2563eb; }
-    .queue-item .remove { color: #dc2626; }
-    .queue-item.editing { background: #f9fafb; }
+    .queue-item .item-actions button:hover { opacity: 0.7; }
+    .queue-item .edit { color: var(--accent); }
+    .queue-item .remove { color: var(--danger); }
+
     .queue-item .edit-comment {
-      width: 100%; min-height: 60px; margin-top: 6px;
-      border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px;
-      font: 12px -apple-system, sans-serif; resize: vertical; outline: none;
+      width: 100%;
+      min-height: 64px;
+      margin-top: 6px;
+      border: 1px solid var(--border-strong);
+      background: var(--bg);
+      color: var(--text);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      font: 13px var(--font);
+      resize: vertical;
+      outline: none;
+      transition: border-color var(--tx), box-shadow var(--tx);
     }
-    .queue-item .edit-comment:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+    .queue-item .edit-comment:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+    }
     .queue-item .edit-actions {
-      margin-top: 8px; display: flex; gap: 6px; justify-content: flex-end;
+      margin-top: 10px;
+      display: flex; gap: 6px;
+      justify-content: flex-end;
     }
     .queue-item .edit-actions button {
-      font: 600 11px sans-serif; padding: 4px 10px;
-      border-radius: 4px; cursor: pointer;
+      font: 600 12px var(--font);
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background var(--tx);
     }
-    .queue-item .save { background: #111827; color: #fff; border: 0; }
-    .queue-item .cancel { background: #fff; color: #6b7280; border: 1px solid #d1d5db; }
+    .queue-item .save {
+      background: var(--accent);
+      color: var(--accent-text);
+      border: 0;
+    }
+    .queue-item .save:hover { background: var(--accent-hover); }
+    .queue-item .cancel {
+      background: var(--bg);
+      color: var(--text-muted);
+      border: 1px solid var(--border-strong);
+    }
+    .queue-item .cancel:hover { background: var(--bg-2); color: var(--text); }
+
+    /* ───────── Element chips ───────── */
     .el-chip {
-      display: inline-flex; align-items: center; gap: 3px; margin-right: 6px;
-      margin-bottom: 3px;
+      display: inline-flex; align-items: center; gap: 5px;
+      margin-right: 6px;
+      margin-bottom: 4px;
+      padding: 3px 8px 3px 3px;
+      border-radius: var(--pill);
+      background: var(--bg-2);
+      border: 1px solid var(--border);
     }
     .el-chip .el-badge {
       display: inline-flex; align-items: center; justify-content: center;
-      min-width: 14px; height: 14px; padding: 0 3px;
-      background: #2563eb; color: #fff; border-radius: 999px;
-      font: 600 9px sans-serif;
+      min-width: 16px; height: 16px;
+      padding: 0 5px;
+      background: var(--accent);
+      color: #ffffff;
+      border-radius: var(--pill);
+      font: 700 10px var(--font);
     }
-    .el-chip code { font-size: 10px; }
+    .el-chip code {
+      font: 10.5px var(--mono);
+      color: var(--text-muted);
+    }
     .el-chip .el-remove {
-      width: 14px; height: 14px; line-height: 12px; text-align: center;
-      border: 0; background: #e5e7eb; color: #6b7280;
-      border-radius: 999px; cursor: pointer; padding: 0;
-      font: 600 11px sans-serif;
+      width: 16px; height: 16px;
+      line-height: 14px;
+      text-align: center;
+      border: 0;
+      background: var(--bg-3);
+      color: var(--text-muted);
+      border-radius: var(--pill);
+      cursor: pointer;
+      padding: 0;
+      font: 700 12px var(--font);
+      transition: background var(--tx), color var(--tx);
     }
-    .el-chip .el-remove:hover { background: #fecaca; color: #b91c1c; }
+    .el-chip .el-remove:hover { background: var(--danger); color: #ffffff; }
+
+    /* ───────── Empty state ───────── */
     .empty-state {
-      padding: 24px 16px; text-align: center; color: #9ca3af; font-size: 12px;
-      line-height: 1.5;
+      padding: 28px 16px;
+      text-align: center;
+      color: var(--text-faint);
+      font: 12px var(--font);
+      line-height: 1.55;
     }
+
+    /* ───────── Action bar ───────── */
     .actions {
-      padding: 10px 16px; display: flex; gap: 8px;
-      border-top: 1px solid #e5e7eb; background: #f9fafb;
+      padding: 12px 16px;
+      display: flex; gap: 8px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-2);
     }
     .actions button {
-      flex: 1; padding: 8px; border-radius: 6px; font: 600 12px -apple-system, sans-serif;
-      cursor: pointer; border: 0; transition: opacity 0.1s;
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      font: 600 12px var(--font);
+      cursor: pointer;
+      border: 0;
+      transition: background var(--tx), opacity var(--tx);
     }
-    .actions button:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-copy { background: #111827; color: #fff; }
-    .btn-send { background: #16a34a; color: #fff; }
-    .btn-clear { background: #fff; color: #6b7280; border: 1px solid #d1d5db !important; }
+    .actions button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .btn-copy {
+      background: var(--text);
+      color: var(--bg);
+    }
+    .btn-copy:hover:not(:disabled) { opacity: 0.85; }
+    .btn-send {
+      background: var(--success);
+      color: #ffffff;
+    }
+    .btn-send:hover:not(:disabled) { opacity: 0.92; }
+    .btn-clear {
+      background: var(--bg);
+      color: var(--text-muted);
+      border: 1px solid var(--border-strong) !important;
+    }
+    .btn-clear:hover:not(:disabled) { background: var(--bg-3); color: var(--danger); }
+
+    .actions:last-of-type { border-top: 0; padding-top: 0; }
   </style>
 </head>
 <body>
@@ -119,29 +347,36 @@
     <h1>Website Overlay</h1>
     <span class="badge" id="count-badge">0</span>
   </header>
-  <div style="padding:6px 16px;font:11px ui-monospace,monospace;color:#374151;border-bottom:1px solid #f3f4f6;word-break:break-all">
-    <span style="color:#9ca3af">Origin:</span> <span id="origin-label">—</span>
+
+  <div class="origin-row">
+    <span class="label">Origin</span>
+    <span id="origin-label">—</span>
   </div>
+
   <div class="status-bar">
-    <div class="status-dot disconnected" id="status-dot"></div>
+    <div class="status-dot" id="status-dot"></div>
     <span id="status-text">Sidecar: checking…</span>
   </div>
-  <div style="padding:10px 16px;display:flex;gap:8px;align-items:center;border-bottom:1px solid #f3f4f6">
-    <button id="btn-pick" style="flex:1;padding:7px 12px;border-radius:6px;background:#2563eb;color:#fff;border:0;font:600 12px -apple-system,sans-serif;cursor:pointer">🎯 Start picking</button>
-    <label style="display:flex;align-items:center;gap:5px;font:11px sans-serif;color:#6b7280;cursor:pointer;user-select:none">
-      <input type="checkbox" id="toggle-disabled" style="margin:0">
+
+  <div class="activation-row">
+    <button id="btn-pick">🎯 Start picking</button>
+    <label class="toggle-disabled">
+      <input type="checkbox" id="toggle-disabled">
       Disable here
     </label>
   </div>
+
   <div id="queue-list"></div>
-  <div id="other-origins" style="display:none;border-top:1px solid #f3f4f6;padding-bottom:6px"></div>
+  <div id="other-origins" style="display:none;border-top:1px solid var(--border);padding-bottom:8px"></div>
+
   <div class="actions">
     <button class="btn-copy" id="btn-copy" disabled>📋 Copy for AI</button>
     <button class="btn-send" id="btn-send" disabled>📡 Send to project</button>
   </div>
-  <div class="actions" style="border-top:0;padding-top:0;">
+  <div class="actions">
     <button class="btn-clear" id="btn-clear" disabled>Clear queue</button>
   </div>
+
   <script src="dist/popup.js"></script>
 </body>
 </html>

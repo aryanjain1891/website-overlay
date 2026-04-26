@@ -164,228 +164,544 @@ export function mount() {
   // Inject styles into shadow
   const style = document.createElement('style');
   style.textContent = `
+    /* ───────── Design tokens ───────── */
+    :host {
+      --wo-bg: #ffffff;
+      --wo-bg-2: #f8fafc;
+      --wo-bg-3: #f1f5f9;
+      --wo-border: rgba(15,23,42,0.08);
+      --wo-border-strong: rgba(15,23,42,0.16);
+      --wo-text: #0f172a;
+      --wo-text-muted: #475569;
+      --wo-text-faint: #94a3b8;
+      --wo-accent: #6366f1;
+      --wo-accent-hover: #4f46e5;
+      --wo-accent-text: #ffffff;
+      --wo-accent-bg: #eef2ff;
+      --wo-success: #10b981;
+      --wo-danger: #ef4444;
+      --wo-amber: #f59e0b;
+      --wo-amber-light: #fbbf24;
+      --wo-amber-text: #422006;
+      --wo-shadow-sm: 0 1px 2px rgba(15,23,42,0.04), 0 0 0 1px rgba(15,23,42,0.04);
+      --wo-shadow-md: 0 4px 16px rgba(15,23,42,0.08), 0 1px 4px rgba(15,23,42,0.04);
+      --wo-shadow-lg: 0 16px 48px rgba(15,23,42,0.16), 0 2px 8px rgba(15,23,42,0.06);
+      --wo-shadow-amber: 0 8px 24px rgba(245,158,11,0.35);
+      --wo-radius-sm: 6px;
+      --wo-radius-md: 10px;
+      --wo-radius-lg: 14px;
+      --wo-pill: 999px;
+      --wo-tx: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+      --wo-font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      --wo-mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', 'Cascadia Code', monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :host {
+        --wo-bg: #0f172a;
+        --wo-bg-2: #1e293b;
+        --wo-bg-3: #334155;
+        --wo-border: rgba(248,250,252,0.08);
+        --wo-border-strong: rgba(248,250,252,0.16);
+        --wo-text: #f1f5f9;
+        --wo-text-muted: #cbd5e1;
+        --wo-text-faint: #64748b;
+        --wo-accent: #818cf8;
+        --wo-accent-hover: #6366f1;
+        --wo-accent-bg: rgba(99,102,241,0.18);
+        --wo-success: #34d399;
+        --wo-danger: #f87171;
+        --wo-shadow-sm: 0 1px 2px rgba(0,0,0,0.3), 0 0 0 1px rgba(248,250,252,0.05);
+        --wo-shadow-md: 0 4px 16px rgba(0,0,0,0.4), 0 1px 4px rgba(0,0,0,0.2);
+        --wo-shadow-lg: 0 16px 48px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+      }
+    }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ───────── Hover highlight ───────── */
     .wo-highlight {
       position: fixed; pointer-events: none;
-      border: 2px solid #3b82f6; background: rgba(59,130,246,0.12);
-      border-radius: 3px; transition: all 50ms ease; display: none;
+      border: 2px solid var(--wo-accent);
+      background: rgba(99,102,241,0.10);
+      border-radius: 4px;
+      box-shadow: 0 0 0 1px rgba(99,102,241,0.18), 0 8px 24px rgba(99,102,241,0.12);
+      transition: all 80ms ease-out;
+      display: none;
     }
+
+    /* ───────── Buttons (base) ───────── */
     .wo-btn {
-      border: 0; cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      border: 0; cursor: pointer;
+      font-family: var(--wo-font);
       user-select: none; outline: none;
+      transition: background var(--wo-tx), border-color var(--wo-tx),
+                  transform var(--wo-tx), box-shadow var(--wo-tx),
+                  color var(--wo-tx), opacity var(--wo-tx);
     }
+    .wo-btn:focus-visible {
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.35);
+    }
+    .wo-btn:active { transform: translateY(1px); }
+
+    /* ───────── Pick pill ───────── */
     .wo-pill {
-      position: fixed; bottom: 16px; right: 16px;
-      padding: 8px 14px; border-radius: 999px;
-      background: #111827; color: #fff; border: 1px solid #374151;
-      font: 500 12px -apple-system, sans-serif;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+      padding: 9px 16px;
+      border-radius: var(--wo-pill);
+      background: var(--wo-bg);
+      color: var(--wo-text);
+      border: 1px solid var(--wo-border);
+      font: 600 13px var(--wo-font);
+      box-shadow: var(--wo-shadow-md);
       pointer-events: auto;
+      white-space: nowrap;
+      letter-spacing: 0.1px;
     }
-    .wo-pill.picking { background: #dc2626; }
+    .wo-pill:hover { background: var(--wo-bg-2); }
+    .wo-pill.picking {
+      background: var(--wo-accent);
+      color: var(--wo-accent-text);
+      border-color: transparent;
+      box-shadow: var(--wo-shadow-md), 0 0 0 4px rgba(99,102,241,0.12);
+    }
+    .wo-pill.picking:hover { background: var(--wo-accent-hover); }
+
+    /* ───────── Queue · N pill ───────── */
     .wo-queue-btn {
-      position: fixed; bottom: 16px; right: auto;
-      padding: 8px 12px; border-radius: 999px;
-      background: #fff; color: #111827; border: 1px solid #d1d5db;
-      font: 500 12px -apple-system, sans-serif;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-      pointer-events: auto; display: none;
+      padding: 8px 14px;
+      border-radius: var(--wo-pill);
+      background: var(--wo-bg);
+      color: var(--wo-text);
+      border: 1px solid var(--wo-border);
+      font: 500 12px var(--wo-font);
+      box-shadow: var(--wo-shadow-sm);
+      pointer-events: auto;
+      display: none;
+      white-space: nowrap;
     }
-    .wo-comment-btn {
-      position: fixed; bottom: 72px; left: 50%; transform: translateX(-50%);
-      padding: 10px 18px; border-radius: 999px;
-      background: #16a34a; color: #fff;
-      font: 600 13px -apple-system, sans-serif;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-      pointer-events: auto; display: none;
-    }
-    .wo-badge {
-      position: fixed; transform: translate(-35%, -35%);
-      background: #2563eb; color: #fff; min-width: 22px; height: 22px;
-      padding: 0 6px; border-radius: 999px;
+    .wo-queue-btn:hover { background: var(--wo-bg-2); }
+
+    /* ───────── Help (?) button ───────── */
+    .wo-help-btn {
+      width: 30px; height: 30px;
+      padding: 0;
+      border-radius: 50%;
+      background: var(--wo-bg);
+      color: var(--wo-text-muted);
+      border: 1px solid var(--wo-border);
+      font: 700 14px var(--wo-font);
+      pointer-events: auto;
+      cursor: pointer;
+      box-shadow: var(--wo-shadow-sm);
       display: flex; align-items: center; justify-content: center;
-      font: 600 12px -apple-system, sans-serif;
-      pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      border: 2px solid #fff; white-space: nowrap;
     }
+    .wo-help-btn:hover { background: var(--wo-bg-2); color: var(--wo-text); }
+
+    /* ───────── Pause / Resume button ───────── */
+    /* Amber kept as a deliberate "you're in a temporary mode" signal, even
+       though the rest of the system is monochrome + indigo. The contrast
+       makes Pause discoverable for users who don't read READMEs. */
+    .wo-pause-btn {
+      padding: 11px 22px;
+      border-radius: var(--wo-pill);
+      background: linear-gradient(180deg, var(--wo-amber-light) 0%, var(--wo-amber) 100%);
+      color: var(--wo-amber-text);
+      border: 0;
+      font: 700 13.5px var(--wo-font);
+      letter-spacing: 0.2px;
+      box-shadow: var(--wo-shadow-amber);
+      pointer-events: auto;
+      cursor: pointer;
+      display: none;
+      white-space: nowrap;
+    }
+    .wo-pause-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 32px rgba(245,158,11,0.45);
+    }
+
+    /* ───────── Comment CTA ───────── */
+    .wo-comment-btn {
+      position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
+      padding: 11px 22px;
+      border-radius: var(--wo-pill);
+      background: linear-gradient(180deg, var(--wo-accent) 0%, var(--wo-accent-hover) 100%);
+      color: var(--wo-accent-text);
+      font: 600 13px var(--wo-font);
+      box-shadow: 0 12px 32px rgba(99,102,241,0.42);
+      pointer-events: auto;
+      display: none;
+      border: 0;
+      cursor: pointer;
+    }
+    .wo-comment-btn:hover { transform: translate(-50%, -1px); }
+
+    /* ───────── Picked-element badges ───────── */
+    .wo-badge {
+      position: fixed;
+      transform: translate(-35%, -35%);
+      background: var(--wo-accent);
+      color: #ffffff;
+      min-width: 24px; height: 24px;
+      padding: 0 7px;
+      border-radius: var(--wo-pill);
+      display: flex; align-items: center; justify-content: center;
+      font: 700 12px var(--wo-font);
+      pointer-events: none;
+      box-shadow: 0 4px 12px rgba(99,102,241,0.5), 0 0 0 2px var(--wo-bg);
+      white-space: nowrap;
+    }
+
+    /* ───────── Compose popover ───────── */
     .wo-popover {
       position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-      width: 460px; max-width: calc(100vw - 32px);
-      background: #fff; color: #111827; border: 1px solid #e5e7eb;
-      border-radius: 10px; box-shadow: 0 16px 40px rgba(0,0,0,0.28);
-      font: 13px -apple-system, sans-serif;
-      pointer-events: auto; display: none; padding: 12px;
+      width: 480px; max-width: calc(100vw - 32px);
+      background: var(--wo-bg);
+      color: var(--wo-text);
+      border: 1px solid var(--wo-border);
+      border-radius: var(--wo-radius-lg);
+      box-shadow: var(--wo-shadow-lg);
+      font: 13px var(--wo-font);
+      pointer-events: auto;
+      display: none;
+      padding: 14px;
     }
     .wo-popover textarea {
-      width: 100%; min-height: 84px; border: 1px solid #d1d5db;
-      border-radius: 6px; padding: 8px; font: 13px -apple-system, sans-serif;
-      resize: vertical; outline: none;
+      width: 100%;
+      min-height: 88px;
+      border: 1px solid var(--wo-border-strong);
+      background: var(--wo-bg-2);
+      color: var(--wo-text);
+      border-radius: var(--wo-radius-sm);
+      padding: 9px 11px;
+      font: 13px var(--wo-font);
+      resize: vertical;
+      outline: none;
+      transition: border-color var(--wo-tx), box-shadow var(--wo-tx),
+                  background var(--wo-tx);
     }
-    .wo-popover textarea:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+    .wo-popover textarea:focus {
+      border-color: var(--wo-accent);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+      background: var(--wo-bg);
+    }
     .wo-small-btn {
-      padding: 6px 10px; border: 1px solid #d1d5db; background: #fff;
-      border-radius: 6px; font: 12px -apple-system, sans-serif;
+      padding: 7px 12px;
+      border: 1px solid var(--wo-border-strong);
+      background: var(--wo-bg);
+      color: var(--wo-text);
+      border-radius: var(--wo-radius-sm);
+      font: 500 12px var(--wo-font);
     }
+    .wo-small-btn:hover { background: var(--wo-bg-2); }
     .wo-primary-btn {
-      padding: 6px 14px; border: 0; background: #111827; color: #fff;
-      border-radius: 6px; font: 600 12px -apple-system, sans-serif;
+      padding: 7px 16px;
+      border: 0;
+      background: var(--wo-accent);
+      color: var(--wo-accent-text);
+      border-radius: var(--wo-radius-sm);
+      font: 600 12px var(--wo-font);
     }
-    .wo-primary-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .wo-primary-btn:hover { background: var(--wo-accent-hover); }
+    .wo-primary-btn:disabled {
+      opacity: 0.4; cursor: not-allowed;
+      background: var(--wo-bg-3); color: var(--wo-text-faint);
+    }
 
-    /* In-page queue panel */
+    /* ───────── In-page queue panel ───────── */
     .wo-queue-panel {
       position: fixed; bottom: 110px; right: 16px;
-      width: 380px; max-width: calc(100vw - 32px);
+      width: 400px; max-width: calc(100vw - 32px);
       max-height: calc(100vh - 160px);
-      background: #fff; color: #111827; border: 1px solid #e5e7eb;
-      border-radius: 10px; box-shadow: 0 16px 40px rgba(0,0,0,0.28);
-      font: 13px -apple-system, sans-serif;
-      pointer-events: auto; display: none;
-      flex-direction: column; overflow: hidden;
+      background: var(--wo-bg);
+      color: var(--wo-text);
+      border: 1px solid var(--wo-border);
+      border-radius: var(--wo-radius-lg);
+      box-shadow: var(--wo-shadow-lg);
+      font: 13px var(--wo-font);
+      pointer-events: auto;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
     }
     .wo-queue-panel.open { display: flex; }
     .wo-qp-header {
-      display: flex; align-items: center; gap: 8px;
-      padding: 10px 12px; border-bottom: 1px solid #e5e7eb;
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--wo-border);
     }
-    .wo-qp-title { font: 600 13px -apple-system, sans-serif; flex: 1; }
+    .wo-qp-title {
+      font: 600 13px var(--wo-font);
+      flex: 1;
+      color: var(--wo-text);
+    }
     .wo-qp-status {
-      font: 11px -apple-system, sans-serif; color: #6b7280;
-      display: flex; align-items: center; gap: 4px;
+      font: 500 11px var(--wo-font);
+      color: var(--wo-text-muted);
+      display: flex; align-items: center; gap: 5px;
+      padding: 3px 9px;
+      border-radius: var(--wo-pill);
+      background: var(--wo-bg-2);
+      border: 1px solid var(--wo-border);
     }
     .wo-qp-status::before {
-      content: ''; width: 7px; height: 7px; border-radius: 50%;
-      background: #d1d5db;
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--wo-text-faint);
     }
-    .wo-qp-status.connected::before { background: #16a34a; }
-    .wo-qp-close {
-      width: 22px; height: 22px; line-height: 18px; text-align: center;
-      border: 0; background: transparent; color: #9ca3af;
-      font: 18px sans-serif; cursor: pointer; padding: 0;
+    .wo-qp-status.connected::before { background: var(--wo-success); }
+    .wo-qp-close, .wo-help-close {
+      width: 26px; height: 26px;
+      border: 0; background: transparent;
+      color: var(--wo-text-muted);
+      font: 18px var(--wo-font); cursor: pointer; padding: 0;
+      border-radius: var(--wo-radius-sm);
+      display: flex; align-items: center; justify-content: center;
     }
-    .wo-qp-list { flex: 1; overflow-y: auto; padding: 0; }
+    .wo-qp-close:hover, .wo-help-close:hover {
+      background: var(--wo-bg-2);
+      color: var(--wo-text);
+    }
+    .wo-qp-list { flex: 1; overflow-y: auto; padding: 4px 0; }
     .wo-qp-empty {
-      padding: 28px 16px; text-align: center; color: #9ca3af; font-size: 12px;
+      padding: 36px 16px;
+      text-align: center;
+      color: var(--wo-text-faint);
+      font: 12px var(--wo-font);
     }
     .wo-qp-item {
-      padding: 10px 12px; border-bottom: 1px solid #f3f4f6;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--wo-border);
+      transition: background var(--wo-tx);
     }
-    .wo-qp-item.editing { background: #f9fafb; }
+    .wo-qp-item:last-child { border-bottom: 0; }
+    .wo-qp-item:hover { background: var(--wo-bg-2); }
+    .wo-qp-item.editing { background: var(--wo-bg-2); }
     .wo-qp-item .els {
-      font: 11px ui-monospace, monospace; color: #374151; margin-bottom: 4px;
+      margin-bottom: 6px;
+      display: flex; flex-wrap: wrap;
     }
-    .wo-qp-item .comment { font-size: 12px; color: #111827; white-space: pre-wrap; }
-    .wo-qp-item .row-actions { margin-top: 6px; display: flex; gap: 10px; }
+    .wo-qp-item .comment {
+      font: 13px var(--wo-font);
+      color: var(--wo-text);
+      white-space: pre-wrap;
+      line-height: 1.45;
+    }
+    .wo-qp-item .row-actions {
+      margin-top: 8px;
+      display: flex; gap: 14px;
+    }
     .wo-qp-item .row-actions button {
-      font: 11px sans-serif; background: none; border: 0;
+      font: 500 12px var(--wo-font);
+      background: none; border: 0;
       cursor: pointer; padding: 0;
+      transition: opacity var(--wo-tx);
     }
-    .wo-qp-item .edit { color: #2563eb; }
-    .wo-qp-item .remove { color: #dc2626; }
+    .wo-qp-item .row-actions button:hover { opacity: 0.7; }
+    .wo-qp-item .edit { color: var(--wo-accent); }
+    .wo-qp-item .remove { color: var(--wo-danger); }
     .wo-qp-item textarea {
-      width: 100%; min-height: 60px; margin-top: 6px;
-      border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px;
-      font: 12px -apple-system, sans-serif; resize: vertical; outline: none;
+      width: 100%;
+      min-height: 64px;
+      margin-top: 6px;
+      border: 1px solid var(--wo-border-strong);
+      background: var(--wo-bg);
+      color: var(--wo-text);
+      border-radius: var(--wo-radius-sm);
+      padding: 8px 10px;
+      font: 13px var(--wo-font);
+      resize: vertical;
+      outline: none;
+      transition: border-color var(--wo-tx), box-shadow var(--wo-tx);
     }
     .wo-qp-item textarea:focus {
-      border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+      border-color: var(--wo-accent);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
     }
     .wo-qp-item .edit-actions {
-      margin-top: 8px; display: flex; gap: 6px; justify-content: flex-end;
+      margin-top: 10px;
+      display: flex; gap: 6px;
+      justify-content: flex-end;
     }
     .wo-qp-item .edit-actions button {
-      font: 600 11px sans-serif; padding: 4px 10px;
-      border-radius: 4px; cursor: pointer;
+      font: 600 12px var(--wo-font);
+      padding: 6px 14px;
+      border-radius: var(--wo-radius-sm);
+      cursor: pointer;
     }
-    .wo-qp-item .save { background: #111827; color: #fff; border: 0; }
-    .wo-qp-item .cancel { background: #fff; color: #6b7280; border: 1px solid #d1d5db; }
+    .wo-qp-item .save {
+      background: var(--wo-accent);
+      color: var(--wo-accent-text);
+      border: 0;
+    }
+    .wo-qp-item .save:hover { background: var(--wo-accent-hover); }
+    .wo-qp-item .cancel {
+      background: var(--wo-bg);
+      color: var(--wo-text-muted);
+      border: 1px solid var(--wo-border-strong);
+    }
+    .wo-qp-item .cancel:hover { background: var(--wo-bg-2); color: var(--wo-text); }
+
+    /* ───────── Element chip (used in panel + popover) ───────── */
     .wo-qp-chip {
-      display: inline-flex; align-items: center; gap: 3px; margin-right: 6px;
-      margin-bottom: 3px;
+      display: inline-flex; align-items: center; gap: 5px;
+      margin-right: 6px;
+      margin-bottom: 4px;
+      padding: 3px 8px 3px 3px;
+      border-radius: var(--wo-pill);
+      background: var(--wo-bg-2);
+      border: 1px solid var(--wo-border);
     }
     .wo-qp-chip .badge {
       display: inline-flex; align-items: center; justify-content: center;
-      min-width: 14px; height: 14px; padding: 0 3px;
-      background: #2563eb; color: #fff; border-radius: 999px;
-      font: 600 9px sans-serif;
+      min-width: 18px; height: 18px;
+      padding: 0 5px;
+      background: var(--wo-accent);
+      color: #ffffff;
+      border-radius: var(--wo-pill);
+      font: 700 10px var(--wo-font);
     }
-    .wo-qp-chip code { font-size: 10px; }
+    .wo-qp-chip code {
+      font: 10.5px var(--wo-mono);
+      color: var(--wo-text-muted);
+    }
     .wo-qp-chip .x {
-      width: 14px; height: 14px; line-height: 12px; text-align: center;
-      border: 0; background: #e5e7eb; color: #6b7280;
-      border-radius: 999px; cursor: pointer; padding: 0;
-      font: 600 11px sans-serif;
+      width: 16px; height: 16px;
+      line-height: 14px;
+      text-align: center;
+      border: 0;
+      background: var(--wo-bg-3);
+      color: var(--wo-text-muted);
+      border-radius: var(--wo-pill);
+      cursor: pointer;
+      padding: 0;
+      font: 700 12px var(--wo-font);
+      margin-left: 2px;
+      transition: background var(--wo-tx), color var(--wo-tx);
     }
-    .wo-qp-chip .x:hover { background: #fecaca; color: #b91c1c; }
+    .wo-qp-chip .x:hover {
+      background: var(--wo-danger);
+      color: #ffffff;
+    }
+
+    /* ───────── Queue panel actions ───────── */
     .wo-qp-actions {
-      padding: 10px 12px; display: flex; gap: 6px;
-      border-top: 1px solid #e5e7eb; background: #f9fafb;
+      padding: 12px 14px;
+      display: flex; gap: 8px;
+      border-top: 1px solid var(--wo-border);
+      background: var(--wo-bg-2);
     }
     .wo-qp-actions button {
-      flex: 1; padding: 7px; border-radius: 6px;
-      font: 600 12px -apple-system, sans-serif;
-      cursor: pointer; border: 0;
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: var(--wo-radius-sm);
+      font: 600 12px var(--wo-font);
+      cursor: pointer;
+      border: 0;
+      transition: background var(--wo-tx), opacity var(--wo-tx);
     }
-    .wo-qp-actions button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .wo-qp-actions button:disabled { opacity: 0.35; cursor: not-allowed; }
     .wo-qp-actions .clear-btn {
-      flex: 0 0 60px; background: #fff; color: #6b7280;
-      border: 1px solid #d1d5db;
+      flex: 0 0 64px;
+      background: var(--wo-bg);
+      color: var(--wo-text-muted);
+      border: 1px solid var(--wo-border-strong);
     }
-    .wo-qp-actions .copy-btn { background: #111827; color: #fff; }
-    .wo-qp-actions .send-btn { background: #16a34a; color: #fff; }
+    .wo-qp-actions .clear-btn:hover:not(:disabled) {
+      background: var(--wo-bg-3);
+      color: var(--wo-danger);
+    }
+    .wo-qp-actions .copy-btn {
+      background: var(--wo-text);
+      color: var(--wo-bg);
+    }
+    .wo-qp-actions .copy-btn:hover:not(:disabled) { opacity: 0.85; }
+    .wo-qp-actions .send-btn {
+      background: var(--wo-success);
+      color: #ffffff;
+    }
+    .wo-qp-actions .send-btn:hover:not(:disabled) { opacity: 0.92; }
 
-    /* Help button + panel */
-    .wo-help-btn {
-      width: 28px; height: 28px; padding: 0;
-      border-radius: 50%;
-      background: #f3f4f6; color: #374151;
-      border: 1px solid #d1d5db;
-      font: 700 13px -apple-system, sans-serif;
-      pointer-events: auto; cursor: pointer;
-    }
-    .wo-help-btn:hover { background: #e5e7eb; }
+    /* ───────── Help panel ───────── */
     .wo-help-panel {
       position: fixed; bottom: 110px; right: 16px;
-      width: 380px; max-width: calc(100vw - 32px);
+      width: 400px; max-width: calc(100vw - 32px);
       max-height: calc(100vh - 160px);
-      background: #fff; color: #111827; border: 1px solid #e5e7eb;
-      border-radius: 10px; box-shadow: 0 16px 40px rgba(0,0,0,0.28);
-      font: 13px -apple-system, sans-serif;
-      pointer-events: auto; display: none;
-      flex-direction: column; overflow: hidden;
+      background: var(--wo-bg);
+      color: var(--wo-text);
+      border: 1px solid var(--wo-border);
+      border-radius: var(--wo-radius-lg);
+      box-shadow: var(--wo-shadow-lg);
+      font: 13px var(--wo-font);
+      pointer-events: auto;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
     }
     .wo-help-panel.open { display: flex; }
     .wo-help-header {
       display: flex; align-items: center; gap: 8px;
-      padding: 10px 12px; border-bottom: 1px solid #e5e7eb;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--wo-border);
     }
-    .wo-help-header span { font: 600 13px -apple-system, sans-serif; flex: 1; }
-    .wo-help-close {
-      width: 22px; height: 22px; line-height: 18px; text-align: center;
-      border: 0; background: transparent; color: #9ca3af;
-      font: 18px sans-serif; cursor: pointer; padding: 0;
+    .wo-help-header span {
+      font: 600 13px var(--wo-font);
+      flex: 1;
+      color: var(--wo-text);
     }
     .wo-help-body {
-      flex: 1; overflow-y: auto; padding: 8px 14px 14px;
+      flex: 1; overflow-y: auto;
+      padding: 8px 16px 16px;
     }
-    .wo-help-body section { padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
+    .wo-help-body section {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--wo-border);
+    }
     .wo-help-body section:last-child { border-bottom: 0; }
     .wo-help-body h4 {
-      font: 600 12px -apple-system, sans-serif; color: #111827;
-      margin: 0 0 4px 0;
+      font: 600 11px var(--wo-font);
+      color: var(--wo-text-muted);
+      margin: 0 0 8px 0;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
     }
     .wo-help-body ul {
-      margin: 0; padding-left: 16px;
-      font: 12px -apple-system, sans-serif; color: #374151;
-      line-height: 1.5;
+      margin: 0;
+      padding-left: 0;
+      list-style: none;
+      font: 12.5px var(--wo-font);
+      color: var(--wo-text);
+      line-height: 1.55;
     }
-    .wo-help-body li { margin-bottom: 2px; }
+    .wo-help-body li {
+      margin-bottom: 6px;
+      padding-left: 14px;
+      position: relative;
+    }
+    .wo-help-body li::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 9px;
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--wo-text-faint);
+    }
     .wo-help-body kbd {
-      display: inline-block; padding: 0 5px;
-      background: #f3f4f6; border: 1px solid #d1d5db;
-      border-radius: 3px; font: 600 11px ui-monospace, monospace;
-      color: #111827;
+      display: inline-block;
+      padding: 1px 7px;
+      background: var(--wo-bg-2);
+      border: 1px solid var(--wo-border-strong);
+      border-radius: var(--wo-radius-sm);
+      font: 600 11px var(--wo-mono);
+      color: var(--wo-text);
+      box-shadow: 0 1px 0 var(--wo-border-strong);
+      vertical-align: 1px;
     }
+    .wo-help-body i {
+      color: var(--wo-text-muted);
+      font-style: normal;
+    }
+    .wo-help-body b { color: var(--wo-text); font-weight: 600; }
   `;
   shadow.appendChild(style);
 
@@ -461,8 +777,6 @@ export function mount() {
 
   const pauseBtn = document.createElement('button');
   pauseBtn.className = 'wo-btn wo-pause-btn';
-  pauseBtn.style.cssText =
-    'padding:12px 22px;border-radius:999px;background:#fbbf24;color:#111827;border:0;font:700 14px -apple-system,sans-serif;box-shadow:0 10px 28px rgba(251,191,36,0.45);pointer-events:auto;display:none;cursor:pointer;letter-spacing:0.2px;';
   controls.appendChild(pauseBtn);
 
   const controlsRow = document.createElement('div');
@@ -641,28 +955,28 @@ export function mount() {
           ? ` · "${escapeHtml(p.text.slice(0, 40))}${p.text.length > 40 ? '…' : ''}"`
           : '';
         return `
-          <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid #f3f4f6">
-            <div style="flex:0 0 auto;min-width:22px;height:22px;padding:0 6px;background:#2563eb;color:#fff;border-radius:999px;display:flex;align-items:center;justify-content:center;font:600 12px sans-serif">${escapeHtml(p.label)}</div>
+          <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:1px solid var(--wo-border)">
+            <div style="flex:0 0 auto;min-width:22px;height:22px;padding:0 7px;background:var(--wo-accent);color:#fff;border-radius:var(--wo-pill);display:flex;align-items:center;justify-content:center;font:700 11px var(--wo-font)">${escapeHtml(p.label)}</div>
             <div style="flex:1;min-width:0">
-              <div style="font:600 11px ui-monospace,monospace;color:#374151;word-break:break-all">${loc}</div>
-              <div style="font:11px ui-monospace,monospace;color:#6b7280">&lt;${escapeHtml(p.tagName)}&gt;${textPart}</div>
+              <div style="font:600 11px var(--wo-mono);color:var(--wo-text);word-break:break-all">${loc}</div>
+              <div style="font:11px var(--wo-mono);color:var(--wo-text-muted);margin-top:1px">&lt;${escapeHtml(p.tagName)}&gt;${textPart}</div>
             </div>
-            <button data-rmref="${i}" class="wo-btn" title="Remove" style="flex:0 0 24px;width:24px;height:24px;border:0;background:none;color:#9ca3af;cursor:pointer;font:16px sans-serif;padding:0">×</button>
+            <button data-rmref="${i}" class="wo-btn" title="Remove" style="flex:0 0 26px;width:26px;height:26px;border:0;background:transparent;color:var(--wo-text-faint);cursor:pointer;font:16px var(--wo-font);padding:0;border-radius:var(--wo-radius-sm)">×</button>
           </div>`;
       })
       .join('');
 
-    const emptyState = `<div style="padding:14px;color:#9ca3af;font-size:12px;text-align:center">No elements selected. Click <b>+ Add element</b> to pick.</div>`;
+    const emptyState = `<div style="padding:18px;color:var(--wo-text-faint);font-size:12px;text-align:center">No elements selected. Click <b>+ Add element</b> to pick.</div>`;
 
     popover.innerHTML = `
-      <div style="font:600 12px -apple-system,sans-serif;color:#6b7280;margin-bottom:6px">
+      <div style="font:600 11px var(--wo-font);color:var(--wo-text-muted);margin-bottom:8px;letter-spacing:0.6px;text-transform:uppercase">
         Compose comment
       </div>
-      <div style="max-height:180px;overflow:auto;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:10px">${rows || emptyState}</div>
+      <div style="max-height:200px;overflow:auto;border:1px solid var(--wo-border);border-radius:var(--wo-radius-sm);margin-bottom:12px;background:var(--wo-bg-2)">${rows || emptyState}</div>
       <textarea id="__wo-comment" placeholder="What should change? Reference elements by badge, e.g. 'move ① above ②'"></textarea>
-      <div style="display:flex;gap:6px;margin-top:10px;align-items:center;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
         <button id="__wo-addmore" class="wo-btn wo-small-btn">+ Add element</button>
-        <span style="font:11px sans-serif;color:#9ca3af;flex:1;text-align:right;min-width:0">⌘↵ queue · ESC cancel</span>
+        <span style="font:11px var(--wo-font);color:var(--wo-text-faint);flex:1;text-align:right;min-width:0">⌘↵ queue · ESC cancel</span>
         <button id="__wo-cancel" class="wo-btn wo-small-btn">Cancel</button>
         <button id="__wo-submit" class="wo-btn wo-primary-btn">Queue</button>
       </div>`;

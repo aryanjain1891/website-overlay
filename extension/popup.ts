@@ -94,13 +94,13 @@ async function refresh() {
   } else {
     otherOrigins.style.display = 'block';
     otherOrigins.innerHTML =
-      `<div style="font:11px sans-serif;color:#6b7280;padding:6px 16px">Other origins with pending picks:</div>` +
+      `<div style="font:600 11px var(--font);color:var(--text-muted);padding:8px 16px 4px;letter-spacing:0.4px;text-transform:uppercase">Other origins</div>` +
       others
         .map(
           ([o, n]) =>
-            `<div style="font:11px ui-monospace,monospace;color:#374151;padding:2px 16px 2px 28px">${escapeHtml(
+            `<div style="font:11px var(--mono);color:var(--text);padding:3px 16px 3px 16px;display:flex;justify-content:space-between;gap:8px"><span style="word-break:break-all">${escapeHtml(
               o,
-            )} · ${n}</div>`,
+            )}</span><span style="color:var(--text-faint)">${n}</span></div>`,
         )
         .join('');
   }
